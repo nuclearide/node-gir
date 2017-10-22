@@ -81,6 +81,7 @@ Handle<Value> GIRValue::FromGValue(GValue *v, GIBaseInfo *base_info) {
                 boxed_info = g_irepository_find_by_gtype(NamespaceLoader::repo, G_VALUE_TYPE(v));
                 return GIRStruct::New((GIRStruct*)g_value_get_boxed(v), boxed_info);
             }
+            break;
 
         case G_TYPE_OBJECT:
             return GIRObject::New(G_OBJECT(g_value_get_object(v)), type);
@@ -109,108 +110,121 @@ bool GIRValue::ToGValue(Handle<Value> value, GType type, GValue *v) {
                 g_value_set_object(v, Nan::ObjectWrap::Unwrap<GIRObject>(value->ToObject())->obj);
                 return true;
             }
+            break;
 
         case G_TYPE_CHAR:
-        if(value->IsString()) {
-            String::Utf8Value str(value);
-            g_value_set_schar(v, (*str)[0]);
-            return true;
-        }
+            if(value->IsString()) {
+                String::Utf8Value str(value);
+                g_value_set_schar(v, (*str)[0]);
+                return true;
+            }
+            break;
 
         case G_TYPE_UCHAR:
-        if(value->IsString()) {
-            String::Utf8Value str(value);
-            g_value_set_schar(v, (*str)[0]);
-            return true;
-        }
+            if(value->IsString()) {
+                String::Utf8Value str(value);
+                g_value_set_schar(v, (*str)[0]);
+                return true;
+            }
+            break;
 
         case G_TYPE_BOOLEAN:
-        if(value->IsBoolean()) {
-            g_value_set_boolean(v, value->ToBoolean()->IsTrue());
-            return true;
-        }
+            if(value->IsBoolean()) {
+                g_value_set_boolean(v, value->ToBoolean()->IsTrue());
+                return true;
+            }
+            break;
 
         case G_TYPE_INT:
-        if(value->IsNumber()) {
-            g_value_set_int(v, Nan::To<int32_t>(value).ToChecked());
-            return true;
-        }
+            if(value->IsNumber()) {
+                g_value_set_int(v, Nan::To<int32_t>(value).ToChecked());
+                return true;
+            }
+            break;
 
         case G_TYPE_UINT:
-        if(value->IsNumber()) {
-            g_value_set_uint(v, value->NumberValue());
-            return true;
-        }
+            if(value->IsNumber()) {
+                g_value_set_uint(v, value->NumberValue());
+                return true;
+            }
+            break;
 
         case G_TYPE_LONG:
-        if(value->IsNumber()) {
-            g_value_set_long(v, value->NumberValue());
-            return true;
-        }
+            if(value->IsNumber()) {
+                g_value_set_long(v, value->NumberValue());
+                return true;
+            }
+            break;
 
         case G_TYPE_ULONG:
-        if(value->IsNumber()) {
-            g_value_set_ulong(v, value->NumberValue());
-            return true;
-        }
+            if(value->IsNumber()) {
+                g_value_set_ulong(v, value->NumberValue());
+                return true;
+            }
+            break;
 
         case G_TYPE_INT64:
-        if(value->IsNumber()) {
-            g_value_set_int64(v, value->NumberValue());
-            return true;
-        }
+            if(value->IsNumber()) {
+                g_value_set_int64(v, value->NumberValue());
+                return true;
+            }
+            break;
 
         case G_TYPE_UINT64:
-        if(value->IsNumber()) {
-            g_value_set_uint64(v, value->NumberValue());
-            return true;
-        }
+            if(value->IsNumber()) {
+                g_value_set_uint64(v, value->NumberValue());
+                return true;
+            }
+            break;
 
         case G_TYPE_ENUM:
-        if(value->IsNumber()) {
-            g_value_set_enum(v, value->NumberValue());
-            return true;
-        }
+            if(value->IsNumber()) {
+                g_value_set_enum(v, value->NumberValue());
+                return true;
+            }
+            break;
 
         case G_TYPE_FLAGS:
-        if(value->IsNumber()) {
-            g_value_set_flags(v, value->NumberValue());
-            return true;
-        }
+            if(value->IsNumber()) {
+                g_value_set_flags(v, value->NumberValue());
+                return true;
+            }
+            break;
 
         case G_TYPE_FLOAT:
-        if(value->IsNumber()) {
-            g_value_set_float(v, value->NumberValue());
-            return true;
-        }
+            if(value->IsNumber()) {
+                g_value_set_float(v, value->NumberValue());
+                return true;
+            }
+            break;
 
         case G_TYPE_DOUBLE:
-        if(value->IsNumber()) {
-            g_value_set_double(v, (gdouble)value->NumberValue());
-            return true;
-        }
+            if(value->IsNumber()) {
+                g_value_set_double(v, (gdouble)value->NumberValue());
+                return true;
+            }
+            break;
 
         case G_TYPE_STRING:
-        if(value->IsString()) {
-            g_value_set_string(v, *String::Utf8Value(value->ToString()) );
-            return true;
-        }
+            if(value->IsString()) {
+                g_value_set_string(v, *String::Utf8Value(value->ToString()) );
+                return true;
+            }
+            break;
 
         case G_TYPE_POINTER:
-        break;
+            break;
 
         case G_TYPE_BOXED:
             g_value_set_boxed(v, Nan::ObjectWrap::Unwrap<GIRStruct>(value->ToObject())->c_structure);
             return true;
-        break;
 
         case G_TYPE_PARAM:
-        break;
+            break;
 
         default:
             Nan::ThrowError("Failed to convert value");
             return false;
-        break;
     }
     return false;
 }
