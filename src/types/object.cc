@@ -357,13 +357,13 @@ void GIRObject::Prepare(Handle<Object> target, GIObjectInfo *info)
         nullptr,
         info_handle);
 
-    t->Set(Nan::New<v8::String>("__properties__").ToLocalChecked(), PropertyList(info));
-    t->Set(Nan::New<v8::String>("__methods__").ToLocalChecked(), MethodList(info));
-    t->Set(Nan::New<v8::String>("__interfaces__").ToLocalChecked(), InterfaceList(info));
-    t->Set(Nan::New<v8::String>("__fields__").ToLocalChecked(), FieldList(info));
-    t->Set(Nan::New<v8::String>("__signals__").ToLocalChecked(), SignalList(info));
-    t->Set(Nan::New<v8::String>("__v_funcs__").ToLocalChecked(), VFuncList(info));
-    t->Set(Nan::New<v8::String>("__abstract__").ToLocalChecked(), Nan::New<Boolean>(g_object_info_get_abstract(info)));
+    // t->Set(Nan::New<v8::String>("__properties__").ToLocalChecked(), PropertyList(info));
+    // t->Set(Nan::New<v8::String>("__methods__").ToLocalChecked(), MethodList(info));
+    // t->Set(Nan::New<v8::String>("__interfaces__").ToLocalChecked(), InterfaceList(info));
+    // t->Set(Nan::New<v8::String>("__fields__").ToLocalChecked(), FieldList(info));
+    // t->Set(Nan::New<v8::String>("__signals__").ToLocalChecked(), SignalList(info));
+    // t->Set(Nan::New<v8::String>("__v_funcs__").ToLocalChecked(), VFuncList(info));
+    // t->Set(Nan::New<v8::String>("__abstract__").ToLocalChecked(), Nan::New<Boolean>(g_object_info_get_abstract(info)));
 
     int l = g_object_info_get_n_constants(info);
     for (int i=0; i<l; i++) {
@@ -831,9 +831,9 @@ GIVFuncInfo *GIRObject::FindVFunc(GIObjectInfo *inf, char *name)
     return vfunc;
 }
 
-Handle<Object> GIRObject::PropertyList(GIObjectInfo *info)
+Local<v8::Array> GIRObject::PropertyList(GIObjectInfo *info)
 {
-    Handle<Object> list = Nan::New<Object>();
+    Local<v8::Array> list = Nan::New<v8::Array>();
     bool first = true;
     int gcounter = 0;
     g_base_info_ref(info);
@@ -962,12 +962,12 @@ void GIRObject::RegisterMethods(Handle<Object> target, GIObjectInfo *info, const
                 Nan::SetPrototypeMethod(t, func_name, CallUnknownMethod);
             } else {
                 // Create new function
-                Local< Function > callback_func = Nan::New<FunctionTemplate>(Func::CallStaticMethod)->GetFunction();
+                Local<FunctionTemplate> callback_func = Nan::New<FunctionTemplate>(Func::CallStaticMethod);
                 // Set name
-                callback_func->SetName(Nan::New<String>(func_name).ToLocalChecked());
+                // callback_func->SetName(Nan::New<String>(func_name).ToLocalChecked());
                 // Create external to hold GIBaseInfo and set it
                 v8::Handle<v8::External> info_ptr = Nan::New<v8::External>((void*)g_base_info_ref(func));
-                Nan::SetPrivate(callback_func, Nan::New("GIInfo").ToLocalChecked(), info_ptr);
+                Nan::SetPrivate(callback_func->GetFunction(), Nan::New("GIInfo").ToLocalChecked(), info_ptr);
                 // Set v8 function
                 t->Set(Nan::New<String>(func_name).ToLocalChecked(), callback_func);
             }

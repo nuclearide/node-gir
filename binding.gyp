@@ -11,7 +11,8 @@
                 'src/values.cc',
                 'src/types/object.cc',
                 'src/types/struct.cc',
-                'src/types/function_type.cc'
+                'src/types/function_type.cc',
+                'src/loop.cc',
             ],
             'conditions': [
                 ['OS=="linux"',
@@ -35,7 +36,7 @@
             ],
             'cflags': [
                 '-std=c++11',
-		'-g'
+                '-g'
             ]
         }
     ]

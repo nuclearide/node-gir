@@ -81,7 +81,7 @@ class GIRObject : public Nan::ObjectWrap {
     static GIFunctionInfo *FindVFunc(GIObjectInfo *inf, char *name);
 
   private:
-    static v8::Handle<v8::Object> PropertyList(GIObjectInfo *info);
+    static v8::Handle<v8::Array> PropertyList(GIObjectInfo *info);
     static v8::Handle<v8::Object> MethodList(GIObjectInfo *info);
     static v8::Handle<v8::Object> InterfaceList(GIObjectInfo *info);
     static v8::Handle<v8::Object> FieldList(GIObjectInfo *info);

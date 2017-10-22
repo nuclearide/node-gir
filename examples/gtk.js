@@ -1,2 +1,6 @@
-var gir = require('../gir')
- ,  gtk = module.exports = gir.load('Gtk', '3.0');
+var gir = require('../gir');
+var gtk = gir.load('Gtk', '3.0');
+
+gir.StartLoop();
+
+module.exports = gtk;

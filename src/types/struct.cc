@@ -365,12 +365,12 @@ void GIRStruct::RegisterMethods(Handle<Object> target, GIStructInfo *info, const
             printf ("REGISTER STRUCT METHOD '%s' \n", g_function_info_get_symbol (func));*/
         if ((func_flag & GI_FUNCTION_IS_CONSTRUCTOR)) {
             // Create new function
-            Local< Function > callback_func = Nan::New<v8::FunctionTemplate>(Func::CallStaticMethod)->GetFunction();
+            Local<FunctionTemplate> callback_func = Nan::New<v8::FunctionTemplate>(Func::CallStaticMethod);
             // Set name
-            callback_func->SetName(Nan::New<String>(func_name).ToLocalChecked());
+            // callback_func->SetName(Nan::New<String>(func_name).ToLocalChecked());
             // Create external to hold GIBaseInfo and set it
             v8::Handle<v8::External> info_ptr = Nan::New<v8::External>((void*)g_base_info_ref(func));
-            Nan::SetPrivate(callback_func, Nan::New("GIInfo").ToLocalChecked(), info_ptr);
+            Nan::SetPrivate(callback_func->GetFunction(), Nan::New("GIInfo").ToLocalChecked(), info_ptr);
             // Set v8 function
             t->Set(Nan::New<String>(func_name).ToLocalChecked(), callback_func);
             //printf ("REGISTER STRUCT CTR '%s' \n", g_function_info_get_symbol (func));

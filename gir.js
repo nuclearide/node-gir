@@ -4,8 +4,14 @@
  *     ,  gtk = gir.load('Gtk', '3.0');
  **/
 // import gir library and EventEmitter
-var gir = module.exports = require('./build/Release/girepository'),
-    EventEmitter = require('events').EventEmitter;
+var gir;
+try {
+    gir = require('./build/Debug/girepository');
+} catch (error) {
+    gir = require('./build/Release/girepository');
+}
+var EventEmitter = require('events').EventEmitter;
+module.exports = gir;
 
 /******************************************************************************/
 
