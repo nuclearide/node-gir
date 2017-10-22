@@ -1,5 +1,4 @@
 var gtk = require("./gtk");
-var axios = require('axios');
 
 gtk.init(0);
 
@@ -16,13 +15,15 @@ win.show_all();
 var w2 = button.get_parent_window();
 console.log(w2);
 
-// win.on("destroy", function() {
-//     console.log("destroyed", arguments[0] instanceof gtk.Window);
-//     gtk.main_quit();
-// });
-// button.on("clicked", function() {
-//     console.log("click :)", arguments[0] instanceof gtk.Button, arguments[0] == button);
-// });
+win.on("destroy", function() {
+    console.log("destroyed");
+    gtk.main_quit();
+});
+
+let clicked_count = 0;
+button.on("clicked", function() {
+    button.set_label(`clicked: ${clicked_count++} times`);
+});
 
 console.log(win.set_property("name", "test"));
 console.log(win.__get_property__("name"));

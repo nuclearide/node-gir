@@ -1,4 +1,5 @@
 #include <iostream>
+#include <string>
 
 #include "object.h"
 #include "function_type.h"
@@ -357,13 +358,13 @@ void GIRObject::Prepare(Handle<Object> target, GIObjectInfo *info)
         nullptr,
         info_handle);
 
-    // t->Set(Nan::New<v8::String>("__properties__").ToLocalChecked(), PropertyList(info));
-    // t->Set(Nan::New<v8::String>("__methods__").ToLocalChecked(), MethodList(info));
-    // t->Set(Nan::New<v8::String>("__interfaces__").ToLocalChecked(), InterfaceList(info));
-    // t->Set(Nan::New<v8::String>("__fields__").ToLocalChecked(), FieldList(info));
-    // t->Set(Nan::New<v8::String>("__signals__").ToLocalChecked(), SignalList(info));
-    // t->Set(Nan::New<v8::String>("__v_funcs__").ToLocalChecked(), VFuncList(info));
-    // t->Set(Nan::New<v8::String>("__abstract__").ToLocalChecked(), Nan::New<Boolean>(g_object_info_get_abstract(info)));
+    t->Set(Nan::New<v8::String>("__properties__").ToLocalChecked(), PropertyList(info));
+    t->Set(Nan::New<v8::String>("__methods__").ToLocalChecked(), MethodList(info));
+    t->Set(Nan::New<v8::String>("__interfaces__").ToLocalChecked(), InterfaceList(info));
+    t->Set(Nan::New<v8::String>("__fields__").ToLocalChecked(), FieldList(info));
+    t->Set(Nan::New<v8::String>("__signals__").ToLocalChecked(), SignalList(info));
+    t->Set(Nan::New<v8::String>("__v_funcs__").ToLocalChecked(), VFuncList(info));
+    t->Set(Nan::New<v8::String>("__abstract__").ToLocalChecked(), Nan::New<Boolean>(g_object_info_get_abstract(info)));
 
     int l = g_object_info_get_n_constants(info);
     for (int i=0; i<l; i++) {
@@ -831,9 +832,9 @@ GIVFuncInfo *GIRObject::FindVFunc(GIObjectInfo *inf, char *name)
     return vfunc;
 }
 
-Local<v8::Array> GIRObject::PropertyList(GIObjectInfo *info)
+Local<v8::ObjectTemplate> GIRObject::PropertyList(GIObjectInfo *info)
 {
-    Local<v8::Array> list = Nan::New<v8::Array>();
+    Local<v8::ObjectTemplate> list = Nan::New<v8::ObjectTemplate>();
     bool first = true;
     int gcounter = 0;
     g_base_info_ref(info);
@@ -854,7 +855,7 @@ Local<v8::Array> GIRObject::PropertyList(GIObjectInfo *info)
         int l = g_object_info_get_n_properties(info);
         for (int i=0; i<l; i++) {
             GIPropertyInfo *prop = g_object_info_get_property(info, i);
-            list->Set(Nan::New<Number>(i+gcounter), Nan::New<String>(g_base_info_get_name(prop)).ToLocalChecked());
+            list->Set(Nan::New(std::to_string(i+gcounter)).ToLocalChecked(), Nan::New<String>(g_base_info_get_name(prop)).ToLocalChecked());
             g_base_info_unref(prop);
         }
         gcounter += l;
@@ -864,9 +865,9 @@ Local<v8::Array> GIRObject::PropertyList(GIObjectInfo *info)
     return list;
 }
 
-Handle<Object> GIRObject::MethodList(GIObjectInfo *info)
+Handle<ObjectTemplate> GIRObject::MethodList(GIObjectInfo *info)
 {
-    Handle<Object> list = Nan::New<Object>();
+    Handle<ObjectTemplate> list = Nan::New<ObjectTemplate>();
     bool first = true;
     int gcounter = 0;
     g_base_info_ref(info);
@@ -887,7 +888,7 @@ Handle<Object> GIRObject::MethodList(GIObjectInfo *info)
         int l = g_object_info_get_n_methods(info);
         for (int i=0; i<l; i++) {
             GIFunctionInfo *func = g_object_info_get_method(info, i);
-            list->Set(Nan::New<Number>(i+gcounter), Nan::New<String>(g_base_info_get_name(func)).ToLocalChecked());
+            list->Set(Nan::New(std::to_string(i+gcounter)).ToLocalChecked(), Nan::New<String>(g_base_info_get_name(func)).ToLocalChecked());
             g_base_info_unref(func);
         }
         gcounter += l;
@@ -978,9 +979,9 @@ void GIRObject::RegisterMethods(Handle<Object> target, GIObjectInfo *info, const
     }
 }
 
-Handle<Object> GIRObject::InterfaceList(GIObjectInfo *info)
+Handle<ObjectTemplate> GIRObject::InterfaceList(GIObjectInfo *info)
 {
-    Handle<Object> list = Nan::New<Object>();
+    Handle<ObjectTemplate> list = Nan::New<ObjectTemplate>();
     bool first = true;
     int gcounter = 0;
     g_base_info_ref(info);
@@ -1001,7 +1002,7 @@ Handle<Object> GIRObject::InterfaceList(GIObjectInfo *info)
         int l = g_object_info_get_n_interfaces(info);
         for (int i=0; i<l; i++) {
             GIInterfaceInfo *interface = g_object_info_get_interface(info, i);
-            list->Set(Nan::New<Number>(i+gcounter), Nan::New<String>(g_base_info_get_name(interface)).ToLocalChecked());
+            list->Set(Nan::New(std::to_string(i+gcounter)).ToLocalChecked(), Nan::New<String>(g_base_info_get_name(interface)).ToLocalChecked());
             g_base_info_unref(interface);
         }
         gcounter += l;
@@ -1011,9 +1012,9 @@ Handle<Object> GIRObject::InterfaceList(GIObjectInfo *info)
     return list;
 }
 
-Handle<Object> GIRObject::FieldList(GIObjectInfo *info)
+Handle<ObjectTemplate> GIRObject::FieldList(GIObjectInfo *info)
 {
-    Handle<Object> list = Nan::New<Object>();
+    Handle<ObjectTemplate> list = Nan::New<ObjectTemplate>();
     bool first = true;
     int gcounter = 0;
     g_base_info_ref(info);
@@ -1034,7 +1035,7 @@ Handle<Object> GIRObject::FieldList(GIObjectInfo *info)
         int l = g_object_info_get_n_fields(info);
         for (int i=0; i<l; i++) {
             GIFieldInfo *field = g_object_info_get_field(info, i);
-            list->Set(Nan::New<Number>(i+gcounter), Nan::New<String>(g_base_info_get_name(field)).ToLocalChecked());
+            list->Set(Nan::New(std::to_string(i+gcounter)).ToLocalChecked(), Nan::New<String>(g_base_info_get_name(field)).ToLocalChecked());
             g_base_info_unref(field);
         }
         gcounter += l;
@@ -1044,9 +1045,9 @@ Handle<Object> GIRObject::FieldList(GIObjectInfo *info)
     return list;
 }
 
-Handle<Object> GIRObject::SignalList(GIObjectInfo *info)
+Handle<ObjectTemplate> GIRObject::SignalList(GIObjectInfo *info)
 {
-    Handle<Object> list = Nan::New<Object>();
+    Handle<ObjectTemplate> list = Nan::New<ObjectTemplate>();
     bool first = true;
     int gcounter = 0;
     g_base_info_ref(info);
@@ -1067,7 +1068,7 @@ Handle<Object> GIRObject::SignalList(GIObjectInfo *info)
         int l = g_object_info_get_n_signals(info);
         for (int i=0; i<l; i++) {
             GISignalInfo *signal = g_object_info_get_signal(info, i);
-            list->Set(Nan::New<Number>(i+gcounter), Nan::New<String>(g_base_info_get_name(signal)).ToLocalChecked());
+            list->Set(Nan::New(std::to_string(i+gcounter)).ToLocalChecked(), Nan::New<String>(g_base_info_get_name(signal)).ToLocalChecked());
             g_base_info_unref(signal);
         }
         gcounter += l;
@@ -1077,9 +1078,9 @@ Handle<Object> GIRObject::SignalList(GIObjectInfo *info)
     return list;
 }
 
-Handle<Object> GIRObject::VFuncList(GIObjectInfo *info)
+Handle<ObjectTemplate> GIRObject::VFuncList(GIObjectInfo *info)
 {
-    Handle<Object> list = Nan::New<Object>();
+    Handle<ObjectTemplate> list = Nan::New<ObjectTemplate>();
     bool first = true;
     int gcounter = 0;
     g_base_info_ref(info);
@@ -1100,7 +1101,7 @@ Handle<Object> GIRObject::VFuncList(GIObjectInfo *info)
         int l = g_object_info_get_n_vfuncs(info);
         for (int i=0; i<l; i++) {
             GIVFuncInfo *vfunc = g_object_info_get_vfunc(info, i);
-            list->Set(Nan::New<Number>(i+gcounter), Nan::New<String>(g_base_info_get_name(vfunc)).ToLocalChecked());
+            list->Set(Nan::New(std::to_string(i+gcounter)).ToLocalChecked(), Nan::New<String>(g_base_info_get_name(vfunc)).ToLocalChecked());
             g_base_info_unref(vfunc);
         }
         gcounter += l;

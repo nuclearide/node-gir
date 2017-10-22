@@ -81,12 +81,12 @@ class GIRObject : public Nan::ObjectWrap {
     static GIFunctionInfo *FindVFunc(GIObjectInfo *inf, char *name);
 
   private:
-    static v8::Handle<v8::Array> PropertyList(GIObjectInfo *info);
-    static v8::Handle<v8::Object> MethodList(GIObjectInfo *info);
-    static v8::Handle<v8::Object> InterfaceList(GIObjectInfo *info);
-    static v8::Handle<v8::Object> FieldList(GIObjectInfo *info);
-    static v8::Handle<v8::Object> SignalList(GIObjectInfo *info);
-    static v8::Handle<v8::Object> VFuncList(GIObjectInfo *info);
+    static v8::Handle<v8::ObjectTemplate> PropertyList(GIObjectInfo *info);
+    static v8::Handle<v8::ObjectTemplate> MethodList(GIObjectInfo *info);
+    static v8::Handle<v8::ObjectTemplate> InterfaceList(GIObjectInfo *info);
+    static v8::Handle<v8::ObjectTemplate> FieldList(GIObjectInfo *info);
+    static v8::Handle<v8::ObjectTemplate> SignalList(GIObjectInfo *info);
+    static v8::Handle<v8::ObjectTemplate> VFuncList(GIObjectInfo *info);
 
     static v8::Handle<v8::Value> ToParams(v8::Handle<v8::Value> val, GParameter** p, int *length, GIObjectInfo *info);
     static void DeleteParams(GParameter* params, int length);
