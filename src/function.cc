@@ -237,7 +237,8 @@ Local<Value> Func::Call(GObject *obj, GIFunctionInfo *info, const Nan::FunctionC
 
 NAN_METHOD(Func::CallStaticMethod)
 {
-    v8::Handle<v8::External> info_ptr = v8::Handle<v8::External>::Cast(info.Callee()->GetHiddenValue(Nan::New("GIInfo").ToLocalChecked()));
+    v8::Handle<v8::External> info_ptr = v8::Handle<v8::External>::Cast(Nan::GetPrivate(info.Callee(), Nan::New("GIInfo").ToLocalChecked()).ToLocalChecked());
+
     GIBaseInfo *func  = (GIBaseInfo*) info_ptr->Value();
     GIBaseInfo *container = g_base_info_get_container(func);
 

@@ -132,7 +132,7 @@ bool GIRValue::ToGValue(Handle<Value> value, GType type, GValue *v) {
 
         case G_TYPE_INT:
         if(value->IsNumber()) {
-            g_value_set_int(v, (gint)value->ToInt32()->Value());
+            g_value_set_int(v, Nan::To<int32_t>(value).ToChecked());
             return true;
         }
 

@@ -967,7 +967,7 @@ void GIRObject::RegisterMethods(Handle<Object> target, GIObjectInfo *info, const
                 callback_func->SetName(Nan::New<String>(func_name).ToLocalChecked());
                 // Create external to hold GIBaseInfo and set it
                 v8::Handle<v8::External> info_ptr = Nan::New<v8::External>((void*)g_base_info_ref(func));
-                callback_func->SetHiddenValue(Nan::New<String>("GIInfo").ToLocalChecked(), info_ptr);
+                Nan::SetPrivate(callback_func, Nan::New("GIInfo").ToLocalChecked(), info_ptr);
                 // Set v8 function
                 t->Set(Nan::New<String>(func_name).ToLocalChecked(), callback_func);
             }

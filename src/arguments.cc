@@ -34,43 +34,43 @@ bool Args::ToGType(Handle<Value> v, GIArgument *arg, GIArgInfo *info, GITypeInfo
         return true;
     }
     if(tag == GI_TYPE_TAG_INT8) {
-        arg->v_int8 = v->ToNumber()->NumberValue();
+        arg->v_uint8 = v->NumberValue();
         return true;
     }
     if(tag == GI_TYPE_TAG_UINT8) {
-        arg->v_uint8 = v->ToNumber()->NumberValue();
+        arg->v_uint8 = v->NumberValue();
         return true;
     }
     if(tag == GI_TYPE_TAG_INT16) {
-        arg->v_int16 = v->ToNumber()->NumberValue();
+        arg->v_int16 = v->NumberValue();
         return true;
     }
     if(tag == GI_TYPE_TAG_UINT16) {
-        arg->v_uint16 = v->ToNumber()->NumberValue();
+        arg->v_uint16 = v->NumberValue();
         return true;
     }
     if(tag == GI_TYPE_TAG_INT32) {
-        arg->v_int32 = v->ToInt32()->Value();
+        arg->v_int32 = v->Int32Value();
         return true;
     }
     if(tag == GI_TYPE_TAG_UINT32) {
-        arg->v_uint32 = v->ToUint32()->Value();
+        arg->v_uint32 = v->Uint32Value();
         return true;
     }
     if(tag == GI_TYPE_TAG_INT64) {
-        arg->v_int64 = v->ToInteger()->Value();
+        arg->v_int64 = v->IntegerValue();
         return true;
     }
     if(tag == GI_TYPE_TAG_UINT64) {
-        arg->v_uint64 = v->ToInteger()->Value();
+        arg->v_uint64 = v->IntegerValue();
         return true;
     }
     if(tag == GI_TYPE_TAG_FLOAT) {
-        arg->v_float = v->ToNumber()->Value();
+        arg->v_float = v->NumberValue();
         return true;
     }
     if(tag == GI_TYPE_TAG_DOUBLE) {
-        arg->v_double = v->ToNumber()->Value();
+        arg->v_double = v->NumberValue();
         return true;
     }
     if(tag == GI_TYPE_TAG_UTF8 || tag == GI_TYPE_TAG_FILENAME) {
