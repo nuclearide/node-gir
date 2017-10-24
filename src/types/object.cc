@@ -7,6 +7,7 @@
 #include "../function.h"
 #include "../values.h"
 #include "../namespace_loader.h"
+#include "../util.h"
 
 #include <string.h>
 #include <node.h>
@@ -674,16 +675,20 @@ NAN_METHOD(GIRObject::CallVFunc)
     info.GetReturnValue().SetUndefined();
 }
 
-GIFunctionInfo *GIRObject::FindMethod(GIObjectInfo *info, char *name)
+GIFunctionInfo *GIRObject::FindMethod(GIObjectInfo *info, char *js_name)
 {
-    GIFunctionInfo *func = g_object_info_find_method(info, name);
+    // given the JS function/method names are camelCased, we should
+    // convert to snake case first!
+    string snake_case_name = Util::toSnakeCase(string(js_name));
+    const char* native_name = snake_case_name.c_str();
+    GIFunctionInfo *func = g_object_info_find_method(info, native_name);
 
     // Find interface method
     if (!func) {
         int ifaces = g_object_info_get_n_interfaces(info);
         for (int i = 0; i < ifaces; i++) {
             GIInterfaceInfo *iface_info = g_object_info_get_interface(info, i);
-            func = g_interface_info_find_method(iface_info, name);
+            func = g_interface_info_find_method(iface_info, native_name);
             if (func) {
                 g_base_info_unref(iface_info);
                 return func;
@@ -694,7 +699,7 @@ GIFunctionInfo *GIRObject::FindMethod(GIObjectInfo *info, char *name)
 
     if (!func) {
         GIObjectInfo *parent = g_object_info_get_parent(info);
-        func = FindMethod(parent, name);
+        func = FindMethod(parent, js_name);
         g_base_info_unref(parent);
     }
     return func;
@@ -953,29 +958,42 @@ void GIRObject::RegisterMethods(Handle<Object> target, GIObjectInfo *info, const
             } else {
                 func = g_interface_info_get_method(info, i);
             }
-            const char *func_name = g_base_info_get_name(func);
-            GIFunctionInfoFlags func_flag = g_function_info_get_flags(func);
-
-            // Determine if method is static one.
-            // In such case, do not set prototype method but instead register
-            // a function attached to the namespace of the class.
-            if (func_flag & GI_FUNCTION_IS_METHOD) {
-                Nan::SetPrototypeMethod(t, func_name, CallUnknownMethod);
-            } else {
-                // Create new function
-                Local<FunctionTemplate> callback_func = Nan::New<FunctionTemplate>(Func::CallStaticMethod);
-                // Set name
-                // callback_func->SetName(Nan::New<String>(func_name).ToLocalChecked());
-                // Create external to hold GIBaseInfo and set it
-                v8::Handle<v8::External> info_ptr = Nan::New<v8::External>((void*)g_base_info_ref(func));
-                Nan::SetPrivate(callback_func->GetFunction(), Nan::New("GIInfo").ToLocalChecked(), info_ptr);
-                // Set v8 function
-                t->Set(Nan::New<String>(func_name).ToLocalChecked(), callback_func);
-            }
+            GIRObject::SetMethod(t, *func);
             g_base_info_unref(func);
         }
         gcounter += l;
         first = false;
+    }
+}
+
+/**
+ * this function will use the GIFunctionInfo (which describes a native function)
+ * to define either a static or prototype method on the target, depending on the
+ * flags of the GIFunctionInfo.
+ * It will also apply a snake_case to camelCase conversion to function name.
+ */
+void GIRObject::SetMethod(Local<FunctionTemplate> &target, GIFunctionInfo &function_info)
+{
+    const char *native_name = g_base_info_get_name(&function_info);
+    const char *js_name = Util::toCamelCase(std::string(native_name)).c_str();
+
+    GIFunctionInfoFlags flags = g_function_info_get_flags(&function_info);
+    if (flags & GI_FUNCTION_IS_METHOD) {
+        // if the function is a method, then we want to set it on the prototype
+        // of the target, as a GI_FUNCTION_IS_METHOD is an instance method.
+        Nan::SetPrototypeMethod(target, js_name, CallUnknownMethod);
+    } else {
+        // else if it's not a method, then we want to set it as a static function
+        // on the target itself (not the prototype)
+        Local<FunctionTemplate> static_function = Nan::New<FunctionTemplate>(Func::CallStaticMethod);
+
+        // set a private value on the function. this is used to lookup the GIFunctionInfo
+        // inside the Func::CallStaticMethod function. TODO: find an alternative to this design!
+        Local<External> function_info_extern = Nan::New<External>((void *)g_base_info_ref(&function_info));
+        Nan::SetPrivate(static_function->GetFunction(), Nan::New("GIInfo").ToLocalChecked(), function_info_extern);
+
+        // set the function on the target.
+        target->Set(Nan::New(js_name).ToLocalChecked(), static_function);
     }
 }
 

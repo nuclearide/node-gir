@@ -2,6 +2,7 @@
 
 #include <v8.h>
 #include <glib.h>
+#include <string>
 
 #define GIR_DEFINE_CONSTANT(target, name, constant)                      \
   (target)->Set(v8::String::NewSymbol(name),                              \
@@ -23,6 +24,8 @@ namespace gir {
 
 namespace Util {
     gchar *utf8StringFromValue(v8::Handle<v8::Value> value);
+    std::string toCamelCase(const std::string input);
+    std::string toSnakeCase(const std::string input);
 }
 
 }

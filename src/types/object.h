@@ -49,6 +49,7 @@ class GIRObject : public Nan::ObjectWrap {
     static void Prepare(v8::Handle<v8::Object> target, GIObjectInfo *info);
     static void SetPrototypeMethods(v8::Local<v8::FunctionTemplate> t, char *name);
     static void RegisterMethods(v8::Handle<v8::Object> target, GIObjectInfo *info, const char *namespace_, v8::Handle<v8::FunctionTemplate> t);
+    static void SetMethod(v8::Local<v8::FunctionTemplate> &target, GIFunctionInfo &function_info);
 
     static void Initialize(v8::Handle<v8::Object> target, char *namespace_);
 
