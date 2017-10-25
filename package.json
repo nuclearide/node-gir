@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "repository": {
     "type": "git",
-    "url": "git://github.com/creationix/node-gir.git"
+    "url": "git://github.com/Place1/node-gir.git"
   },
   "author": "Tim Caswell <tim@creationix.com>",
   "contributors": [
