@@ -56,6 +56,7 @@ static regex underscore_re = regex("_");
  * This function returns a new string, converting the input
  * string from snake case to camel case.
  * e.g. 'set_label' --> 'setLabel'
+ * TODO: optimise!
  */
 string toCamelCase(const string input) {
   vector<string> words = split_string(input, underscore_re);

@@ -61,6 +61,7 @@ class GIRObject : public Nan::ObjectWrap {
     static NAN_METHOD(GetField);
     static NAN_METHOD(WatchSignal);
     static NAN_METHOD(CallVFunc);
+    static NAN_METHOD(Connect);
 
     static void PushInstance(GIRObject *obj, v8::Handle<v8::Value>);
     static v8::Handle<v8::Value> GetInstance(GObject *obj);

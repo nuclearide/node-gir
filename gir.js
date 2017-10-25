@@ -8,7 +8,11 @@ var gir;
 try {
     gir = require('./build/Debug/girepository');
 } catch (error) {
-    gir = require('./build/Release/girepository');
+    if (error.code === '"MODULE_NOT_FOUND"') {
+        gir = require('./build/Release/girepository');
+    } else {
+        throw error;
+    }
 }
 var EventEmitter = require('events').EventEmitter;
 module.exports = gir;

@@ -15,13 +15,14 @@ win.showAll();
 var w2 = button.getParentWindow();
 console.log(w2);
 
-win.on("destroy", function() {
+win.connect("destroy", function() {
     console.log("destroyed");
     gtk.mainQuit();
 });
 
 let clicked_count = 0;
-button.on("clicked", function() {
+button.connect("clicked", function() {
+    console.log('button clicked');
     button.setLabel(`clicked: ${clicked_count++} times`);
 });
 

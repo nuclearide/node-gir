@@ -3,6 +3,7 @@
 
 #include "object.h"
 #include "function_type.h"
+#include "../signal_closure.h"
 #include "../util.h"
 #include "../function.h"
 #include "../values.h"
@@ -412,6 +413,7 @@ void GIRObject::SetPrototypeMethods(Local<FunctionTemplate> t, char *name)
     Nan::SetPrototypeMethod(t, "__get_field__", GetField);
     Nan::SetPrototypeMethod(t, "__watch_signal__", WatchSignal);
     Nan::SetPrototypeMethod(t, "__call_v_func__", CallMethod);
+    Nan::SetPrototypeMethod(t, "connect", Connect);
 }
 
 Handle<Value> GIRObject::Emit(Handle<Value> argv[], int length)
@@ -524,6 +526,37 @@ NAN_METHOD(GIRObject::CallMethod)
     }
 
     info.GetReturnValue().SetUndefined();
+}
+
+/**
+ * This method will connect a signal to the underlying gobject.
+ */
+NAN_METHOD(GIRObject::Connect) {
+    if (info.Length() != 2 || !info[0]->IsString() || !info[1]->IsFunction()) {
+        Nan::ThrowError("Invalid arguments: expected (string, Function)");
+    }
+    GIRObject *self = Nan::ObjectWrap::Unwrap<GIRObject>(info.This()->ToObject());
+    Nan::Utf8String nan_signal_name(info[0]->ToString());
+    char *signal_name = *nan_signal_name;
+    Nan::Persistent<Function, CopyablePersistentTraits<Function>> callback(Nan::To<Function>(info[1]).ToLocalChecked());
+
+    // parse the signal id and detail (whatever that is) from the gobject we're wrapping
+    guint signal_id;
+    GQuark detail;
+    if (!g_signal_parse_name(signal_name, G_OBJECT_TYPE(self->obj), &signal_id, &detail, TRUE)) {
+        Nan::ThrowError("unknown signal name");
+    }
+
+    // create and connect a signal_closure to the signal
+    GClosure *closure = gir_new_signal_closure(self, signal_name, callback);
+    if (closure == NULL) {
+        callback.Reset();
+        Nan::ThrowError("unknown signal");
+    }
+    gulong handle_id = g_signal_connect_closure_by_id(self->obj, signal_id, detail, closure, FALSE); // TODO: support connecting with after=TRUE
+
+    // return the signal connection ID back to JS.
+    info.GetReturnValue().Set(Nan::New((uint32_t)handle_id));
 }
 
 NAN_METHOD(GIRObject::GetProperty)

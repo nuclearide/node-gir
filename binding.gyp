@@ -13,6 +13,7 @@
                 'src/types/struct.cc',
                 'src/types/function_type.cc',
                 'src/loop.cc',
+                'src/signal_closure.cc'
             ],
             'conditions': [
                 ['OS=="linux"',
