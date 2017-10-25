@@ -1,5 +1,16 @@
 const { Gtk } = require('../');
 
+/*
+ * These tests check that the gtk main loop integration doesn't block
+ * setTimeout, nextTick and Promises (i.e. V8 macro tasks and micro tasks).
+ *
+ * These tests will (unfortunately) not terminate if the main loop integration
+ * does block these. It seems like Jest is unable to kill the test via a timeout
+ * due to the test blocking (when the loop integration doesn't work!).
+ *
+ * So if your tests aren't halting, and this file contains the tests that never halt,
+ * then the reason is likely the event loop integration in `src/loop.cc`.
+ */
 describe('Gtk main loop integration', () => {
   test('it should not block setTimeout from popping', (done) => {
     setTimeout(() => {
