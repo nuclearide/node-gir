@@ -498,12 +498,20 @@ NAN_METHOD(GIRObject::Connect) {
         Nan::ThrowError("unknown signal name");
     }
 
-    // create and connect a signal_closure to the signal
-    GClosure *closure = gir_new_signal_closure(self, signal_name, callback);
+    // query for in-depth information about the target signal
+    // we can pass this to our closure constructor later so that it can
+    // find the GI type info for the signal.
+    GSignalQuery signal_query;
+    g_signal_query(signal_id, &signal_query);
+
+    // create a closure that will manage the signal callback to JS callback for us
+    GClosure *closure = gir_new_signal_closure(self, signal_query.itype, signal_name, callback);
     if (closure == NULL) {
         callback.Reset();
         Nan::ThrowError("unknown signal");
     }
+
+    // connect the closure to the signal using the signal_id and detail we've already found
     gulong handle_id = g_signal_connect_closure_by_id(self->obj, signal_id, detail, closure, FALSE); // TODO: support connecting with after=TRUE
 
     // return the signal connection ID back to JS.
