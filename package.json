@@ -7,6 +7,19 @@
     "url": "git://github.com/creationix/node-gir.git"
   },
   "author": "Tim Caswell <tim@creationix.com>",
+  "contributors": [
+    {
+      "name": "Tim Caswell",
+      "email": "tim@creationix.com"
+    },
+    {
+      "name": "Piotr Pokora"
+    },
+    {
+      "name": "James Batt",
+      "email": "getjamesbatt@gmail.me"
+    }
+  ],
   "main": "src/index.js",
   "scripts": {
     "build:debug": "node-gyp configure --debug && node-gyp build --debug",
