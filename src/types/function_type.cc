@@ -7,22 +7,29 @@
 #include <node.h>
 #include <nan.h>
 
+using namespace std;
 using namespace v8;
 
 namespace gir {
 
 void GIRFunction::Initialize(Handle<Object> target, GIObjectInfo *info)
 {
-    const char *func_name = g_base_info_get_name(info);
+    const char *native_name = g_base_info_get_name(info);
+    const char *js_name = string(Util::toCamelCase(string(native_name))).c_str();
+
     // Create new function
-    Local<FunctionTemplate> temp = Nan::New<FunctionTemplate>(Execute);
-    // Set name
-    temp->GetFunction()->SetName(Nan::New<String>(func_name).ToLocalChecked());
-    // Create external to hold GIBaseInfo and set it
+    Local<FunctionTemplate> js_function_template = Nan::New<FunctionTemplate>(GIRFunction::Execute);
+    Local<Function> js_function = js_function_template->GetFunction();
+
+    // Set the function name
+    js_function->SetName(Nan::New(js_name).ToLocalChecked());
+
+    // Create external to hold GIBaseInfo and set it as a private data property
     v8::Handle<v8::External> info_ptr = Nan::New<v8::External>((void*)g_base_info_ref(info));
-    Nan::SetPrivate(temp->GetFunction(), Nan::New("GIInfo").ToLocalChecked(), info_ptr);
-    // Set symbol
-    target->Set(Nan::New<String>(func_name).ToLocalChecked(), temp->GetFunction());
+    Nan::SetPrivate(js_function, Nan::New("GIInfo").ToLocalChecked(), info_ptr);
+
+    // Set the function on the target object
+    target->Set(Nan::New(js_name).ToLocalChecked(), js_function);
 }
 
 NAN_METHOD(GIRFunction::Execute)
