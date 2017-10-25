@@ -11,4 +11,4 @@ exports.GdkPixbuf = GdkPixbuf;
 exports.GLib = GLib;
 exports.GObject = GObject;
 exports.Gtk = Gtk;
-exports.win = new Gtk.Window({type: Gtk.WindowType.toplevel, title:"Node.JS GTK Window"});
+

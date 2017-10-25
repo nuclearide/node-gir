@@ -7,22 +7,21 @@
     "url": "git://github.com/creationix/node-gir.git"
   },
   "author": "Tim Caswell <tim@creationix.com>",
-  "main": "gir.js",
+  "main": "src/index.js",
+  "scripts": {
+    "build:debug": "node-gyp configure --debug && node-gyp build --debug",
+    "test": "jest"
+  },
   "directories": {
     "lib": "."
   },
   "engines": {
     "node": "*"
   },
-  "devDependencies": {
-    "should": "1.0.x",
-    "mocha": "1.3.x"
-  },
-  "scripts": {
-    "build:debug": "node-gyp configure --debug && node-gyp build --debug",
-    "test": "./node_modules/.bin/mocha tests/test_*.js tests/midgard/test_*.js"
-  },
   "dependencies": {
     "nan": "^2.7.0"
+  },
+  "devDependencies": {
+    "jest": "^21.2.1"
   }
 }

@@ -1,11 +1,23 @@
-var gir = require('../gir');
+const { Gtk } = require('../');
 
-const startTime = Date.now();
-var gtk = gir.load('Gtk', '3.0');
-const endTime = Date.now();
-console.log(`loaded gtk bindings in: ${endTime - startTime}ms`)
+const win = new Gtk.Window({
+    type: Gtk.WindowType.toplevel,
+    title:"Node.JS Gtk Window"
+});
+win.setBorderWidth(10);
 
-gir.StartLoop();
+const button = new Gtk.Button();
+button.setLabel("hallo, welt!");
+win.add(button);
 
-module.exports = gtk;
+win.connect("destroy", function() {
+    Gtk.mainQuit();
+});
 
+let clicked_count = 0;
+button.connect("clicked", function() {
+    button.setLabel(`clicked: ${clicked_count++} times`);
+});
+
+win.showAll();
+Gtk.main();
