@@ -411,29 +411,11 @@ void GIRObject::SetPrototypeMethods(Local<FunctionTemplate> t, char *name)
     Nan::SetPrototypeMethod(t, "__set_property__", SetProperty);
     Nan::SetPrototypeMethod(t, "__get_interface__", GetInterface);
     Nan::SetPrototypeMethod(t, "__get_field__", GetField);
-    Nan::SetPrototypeMethod(t, "__watch_signal__", WatchSignal);
     Nan::SetPrototypeMethod(t, "__call_v_func__", CallMethod);
+
+    // Add our 'connect' method to the target.
+    // This method is used to connect signals to the underlying gobject.
     Nan::SetPrototypeMethod(t, "connect", Connect);
-}
-
-Handle<Value> GIRObject::Emit(Handle<Value> argv[], int length)
-{
-    //String::Utf8Value cname(handle()->GetConstructorName());
-    //String::Utf8Value signal(argv[0]);
-
-    //printf ("Emit, handle is '%s' '%s' [%p], length (%d) \n", *cname, *signal, handle(), length);
-
-    // this will do the magic but dont forget to extend this object in JS from require("events").EventEmitter
-    Local<Value> emit_v = handle()->Get(Nan::New("emit").ToLocalChecked());
-    //printf ("EMIT PTR IS [%p] \n", emit_v);
-    //v8::String::AsciiValue ename(emit_v->ToString());
-    //printf ("Emit, emit is '%s' \n", *ename);
-    if (emit_v->IsUndefined() || !emit_v->IsFunction()) {
-        return Nan::Null();
-    }
-
-    Local<Function> emit = Local<Function>::Cast(emit_v);
-    return emit->Call(handle(), length, argv);
 }
 
 void GIRObject::PushInstance(GIRObject *obj, Handle<Value> value)
@@ -456,39 +438,6 @@ Handle<Value> GIRObject::GetInstance(GObject *obj)
         }
     }
     return Nan::Null();
-}
-
-void GIRObject::SignalCallback(GClosure *closure,
-  GValue *return_value,
-  guint n_param_values,
-  const GValue *param_values,
-  gpointer invocation_hint,
-  gpointer marshal_data)
-{
-    MarshalData *data = (MarshalData*)marshal_data;
-
-    Local<Value> args[n_param_values+1];
-    //printf ("SignalCallback : [%p] '%s' \n", data->event_name, data->event_name);
-    args[0] = Nan::New<String>(data->event_name).ToLocalChecked();
-
-    for (guint i=0; i<n_param_values; i++) {
-        GValue p = param_values[i];
-        args[i+1] = GIRValue::FromGValue(&p, nullptr);
-    }
-
-    Handle<Value> res = data->that->Emit(args, n_param_values+1);
-    if (res != Nan::Null()) {
-        //printf ("Call ToGValue '%s'\n", G_VALUE_TYPE_NAME(return_value));
-        if (return_value && G_IS_VALUE(return_value))
-            GIRValue::ToGValue(res, G_VALUE_TYPE(return_value), return_value);
-    }
-}
-
-void GIRObject::SignalFinalize(gpointer marshal_data, GClosure *c)
-{
-    MarshalData *data = (MarshalData*)marshal_data;
-    g_free (data->event_name);
-    g_free (data);
 }
 
 NAN_METHOD(GIRObject::CallUnknownMethod)
@@ -529,7 +478,9 @@ NAN_METHOD(GIRObject::CallMethod)
 }
 
 /**
- * This method will connect a signal to the underlying gobject.
+ * This method will connect a signal to the underlying gobject
+ * using a GirSignalClosure (a custom GClosure we've written to support
+ * JS callback's)
  */
 NAN_METHOD(GIRObject::Connect) {
     if (info.Length() != 2 || !info[0]->IsString() || !info[1]->IsFunction()) {
@@ -651,38 +602,6 @@ NAN_METHOD(GIRObject::GetField)
     }
     else {
         debug_printf("field %s does NOT exist\n", *fname);
-    }
-
-    info.GetReturnValue().SetUndefined();
-}
-
-NAN_METHOD(GIRObject::WatchSignal)
-{
-    if (info.Length() < 1 || !info[0]->IsString()) {
-        Nan::ThrowError("Invalid argument's number or type");
-    }
-    bool after = true;
-    if (info.Length() > 1 && info[1]->IsBoolean()) {
-        after = info[1]->ToBoolean()->IsTrue();
-    }
-
-    String::Utf8Value sname(info[0]);
-    GIRObject *that = Nan::ObjectWrap::Unwrap<GIRObject>(info.This()->ToObject());
-    GISignalInfo *signal = that->FindSignal(that->info, *sname);
-    //printf ("WATCH : OBJ '%s', SIGNAL '%s' \n", G_OBJECT_TYPE_NAME (that->obj), *sname);
-
-    if(signal) {
-        MarshalData *data = g_new(MarshalData, 1);
-        data->that = that;
-        data->event_name = g_strdup(*sname);
-
-        GClosure *closure = g_cclosure_new(G_CALLBACK(empty_func), nullptr, nullptr);
-        g_closure_add_finalize_notifier(closure, data, GIRObject::SignalFinalize);
-        g_closure_set_meta_marshal(closure, data, GIRObject::SignalCallback);
-        g_signal_connect_closure(that->obj, *sname, closure, after);
-    }
-    else {
-        Nan::ThrowError("no such signal");
     }
 
     info.GetReturnValue().SetUndefined();

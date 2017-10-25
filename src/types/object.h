@@ -49,7 +49,6 @@ class GIRObject : public Nan::ObjectWrap {
     static void Prepare(v8::Handle<v8::Object> target, GIObjectInfo *info);
     static void SetPrototypeMethods(v8::Local<v8::FunctionTemplate> t, char *name);
     static void RegisterMethods(v8::Handle<v8::Object> target, GIObjectInfo *info, const char *namespace_, v8::Handle<v8::FunctionTemplate> t);
-    static void SetMethod(v8::Local<v8::FunctionTemplate> &target, GIFunctionInfo &function_info);
 
     static void Initialize(v8::Handle<v8::Object> target, char *namespace_);
 
@@ -59,21 +58,11 @@ class GIRObject : public Nan::ObjectWrap {
     static NAN_METHOD(SetProperty);
     static NAN_METHOD(GetInterface);
     static NAN_METHOD(GetField);
-    static NAN_METHOD(WatchSignal);
     static NAN_METHOD(CallVFunc);
     static NAN_METHOD(Connect);
 
     static void PushInstance(GIRObject *obj, v8::Handle<v8::Value>);
     static v8::Handle<v8::Value> GetInstance(GObject *obj);
-
-    static void SignalFinalize(gpointer data, GClosure *c);
-    static void SignalCallback(GClosure *closure,
-        GValue *return_value,
-        guint n_param_values,
-        const GValue *param_values,
-        gpointer invocation_hint,
-        gpointer marshal_data);
-    v8::Handle<v8::Value> Emit(v8::Handle<v8::Value> argv[], int length);
 
     static GIFunctionInfo *FindMethod(GIObjectInfo *inf, char *name);
     static GIFunctionInfo *FindProperty(GIObjectInfo *inf, char *name);
@@ -83,6 +72,8 @@ class GIRObject : public Nan::ObjectWrap {
     static GIFunctionInfo *FindVFunc(GIObjectInfo *inf, char *name);
 
   private:
+    static void SetMethod(v8::Local<v8::FunctionTemplate> &target, GIFunctionInfo &function_info);
+
     static v8::Handle<v8::ObjectTemplate> PropertyList(GIObjectInfo *info);
     static v8::Handle<v8::ObjectTemplate> MethodList(GIObjectInfo *info);
     static v8::Handle<v8::ObjectTemplate> InterfaceList(GIObjectInfo *info);
