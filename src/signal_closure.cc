@@ -112,11 +112,10 @@ GISignalInfo* gir_get_signal(GType signal_g_type, const char* signal_name) {
  * error condition, it's suppose to be a 'constructor' function (constructing a closure struct)
  * and constructors shouldn't really 'error' like this.
  */
-GClosure* gir_new_signal_closure(GIRObject *instance,
-                                 GType signal_g_type,
-                                 const char* signal_name,
-                                 Nan::Persistent<Function,
-                                 CopyablePersistentTraits<Function>> callback) {
+GClosure* GIRSignalClosure::create(GIRObject *instance,
+                                   GType signal_g_type,
+                                   const char* signal_name,
+                                   Local<Function> callback) {
   GISignalInfo *signal_info = gir_get_signal(signal_g_type, signal_name);
   if (signal_info == NULL) {
     return NULL;
@@ -130,7 +129,7 @@ GClosure* gir_new_signal_closure(GIRObject *instance,
   g_closure_add_finalize_notifier(closure, NULL, gir_signal_closure_finalize_handler);
   g_closure_set_marshal(closure, gir_signal_closure_marshal);
 
-  gir_signal_closure->callback = callback;
+  gir_signal_closure->callback = PersistentFunction(callback);
   gir_signal_closure->signal_info = signal_info;
 
   return closure;

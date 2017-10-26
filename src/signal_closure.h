@@ -12,17 +12,18 @@ namespace gir {
 using namespace std;
 using namespace v8;
 
-typedef struct _GIRSignalClosure {
+typedef Nan::Persistent<Function, CopyablePersistentTraits<Function>> PersistentFunction;
+
+struct GIRSignalClosure {
   GClosure closure;
   GISignalInfo *signal_info;
-  Nan::Persistent<Function, CopyablePersistentTraits<Function>> callback;
-} GIRSignalClosure;
+  PersistentFunction callback;
 
-GClosure* gir_new_signal_closure(GIRObject *instance,
-                                 GType signal_g_type,
-                                 const char* signal_name,
-                                 Nan::Persistent<Function,
-                                 CopyablePersistentTraits<Function>> callback);
+  static GClosure* create(GIRObject *instance,
+                          GType signal_g_type,
+                          const char* signal_name,
+                          Local<Function> callback);
+};
 
 }
 

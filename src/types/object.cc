@@ -489,7 +489,7 @@ NAN_METHOD(GIRObject::Connect) {
     GIRObject *self = Nan::ObjectWrap::Unwrap<GIRObject>(info.This()->ToObject());
     Nan::Utf8String nan_signal_name(info[0]->ToString());
     char *signal_name = *nan_signal_name;
-    Nan::Persistent<Function, CopyablePersistentTraits<Function>> callback(Nan::To<Function>(info[1]).ToLocalChecked());
+    Local<Function> callback = Nan::To<Function>(info[1]).ToLocalChecked();
 
     // parse the signal id and detail (whatever that is) from the gobject we're wrapping
     guint signal_id;
@@ -505,9 +505,8 @@ NAN_METHOD(GIRObject::Connect) {
     g_signal_query(signal_id, &signal_query);
 
     // create a closure that will manage the signal callback to JS callback for us
-    GClosure *closure = gir_new_signal_closure(self, signal_query.itype, signal_name, callback);
+    GClosure *closure = GIRSignalClosure::create(self, signal_query.itype, signal_name, callback);
     if (closure == NULL) {
-        callback.Reset();
         Nan::ThrowError("unknown signal");
     }
 
