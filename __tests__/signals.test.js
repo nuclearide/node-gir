@@ -16,5 +16,13 @@ describe('signals', () => {
     expect(typeof(connectionId)).toEqual('number');
   });
 
+  test('a signal that passes parameters to it\'s callback should work', (done) => {
+    const window = new Gtk.Window({ type: Gtk.WindowType.toplevel, title: "signal-test-window" });;
+    const button = new Gtk.Button();
+    button.connect('size-allocate', allocation => done());
+    window.add(button);
+    window.showAll();
+  });
+
   // TODO: write a test to ensure object.disconnect(connectionId) works
 });
