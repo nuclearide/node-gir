@@ -1,5 +1,5 @@
 {
-  "name": "gir",
+  "name": "node-gir",
   "description": "GObject Introspection Repository",
   "version": "0.1.0",
   "repository": {
