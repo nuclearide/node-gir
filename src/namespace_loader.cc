@@ -66,7 +66,7 @@ Handle<Value> NamespaceLoader::BuildClasses(char *namespace_) {
             case GI_INFO_TYPE_BOXED:
                 //FIXME: GIStructInfo or GIUnionInfo
             case GI_INFO_TYPE_STRUCT:
-                GIRStruct::Prepare(module, (GIStructInfo*)info);
+                exported_value = GIRStruct::Prepare((GIStructInfo*)info);
                 break;
             case GI_INFO_TYPE_ENUM:
                 ParseEnum((GIEnumInfo*)info, module);

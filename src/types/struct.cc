@@ -41,6 +41,10 @@ Handle<Value> GIRStruct::New(gpointer c_structure, GIStructInfo *info)
         }
     }
 
+    if (res == Nan::Null()) {
+
+    }
+
     if (!res.IsEmpty()) {
         GIRStruct *s = ObjectWrap::Unwrap<GIRStruct>(res->ToObject());
         s->info = info;
@@ -192,42 +196,43 @@ NAN_PROPERTY_SETTER(FieldSetHandler)
     info.GetReturnValue().Set(Nan::New<v8::Boolean>(info.This()->GetPrototype()->ToObject()->Set(property, value)));
 }
 
-void GIRStruct::Prepare(Handle<Object> target, GIStructInfo *info)
-{
+Local<Value> GIRStruct::Prepare(GIStructInfo *info) {
     char *name = (char*)g_base_info_get_name(info);
     const char *namespace_ = g_base_info_get_namespace(info);
     g_base_info_ref(info);
 
     // Ignore, if this is gtype (object class) struct.
     if (g_struct_info_is_gtype_struct(info))
-        return;
+        return Nan::Null();
 
     // Ignore all Private and IFace structures
-    if (g_str_has_suffix(name, "Private")
-            || g_str_has_suffix(name, "IFace"))
-        return;
+    if (g_str_has_suffix(name, "Private") || g_str_has_suffix(name, "IFace")) {
+        return Nan::Null();
+    }
 
-    Local<FunctionTemplate> t = Nan::New<FunctionTemplate>(New);
-    t->SetClassName(Nan::New<String>(name).ToLocalChecked());
+    Local<FunctionTemplate> object_template = Nan::New<FunctionTemplate>(GIRStruct::New);
+    object_template->SetClassName(Nan::New(name).ToLocalChecked());
 
     StructFunctionTemplate oft;
     oft.type_name = name;
     oft.info = info;
-    oft.function = t;
+    oft.function = object_template;
     oft.type = g_registered_type_info_get_g_type(info);
     oft.namespace_ = (char*)namespace_;
 
     templates.push_back(oft);
 
     // Create instance template
-    v8::Local<v8::ObjectTemplate> instance_t = t->InstanceTemplate();
-    instance_t->SetInternalFieldCount(1);
+    v8::Local<v8::ObjectTemplate> object_instance_template = object_template->InstanceTemplate();
+    object_instance_template->SetInternalFieldCount(1);
     // Create external to hold GIBaseInfo and set it
     v8::Handle<v8::External> info_handle = Nan::New<v8::External>((void*)g_base_info_ref(info));
     // Set fields handlers
-    SetNamedPropertyHandler(instance_t, FieldGetHandler, FieldSetHandler, FieldQueryHandler, 0, 0, info_handle);
+    SetNamedPropertyHandler(object_instance_template, FieldGetHandler, FieldSetHandler, FieldQueryHandler, 0, 0, info_handle);
 
-    RegisterMethods(target, info, namespace_, t);
+    RegisterMethods(info, namespace_, object_template);
+
+    return object_template->GetFunction();
 }
 
 void GIRStruct::Initialize(Handle<Object> target, char *namespace_)
@@ -340,7 +345,7 @@ Handle<Object> GIRStruct::MethodList(GIObjectInfo *info)
         int l = g_object_info_get_n_methods(info);
         for (int i=0; i<l; i++) {
             GIFunctionInfo *func = g_object_info_get_method(info, i);
-            list->Set(Nan::New<Number>(i+gcounter), Nan::New<String>(g_base_info_get_name(func)).ToLocalChecked());
+            list->Set(Nan::New<Number>(i+gcounter), Nan::New(g_base_info_get_name(func)).ToLocalChecked());
             g_base_info_unref(func);
         }
         gcounter += l;
@@ -350,33 +355,25 @@ Handle<Object> GIRStruct::MethodList(GIObjectInfo *info)
     return list;
 }
 
-void GIRStruct::RegisterMethods(Handle<Object> target, GIStructInfo *info, const char *namespace_, Handle<FunctionTemplate> t)
-{
-    int l = g_struct_info_get_n_methods(info);
-    for (int i=0; i<l; i++) {
+void GIRStruct::RegisterMethods(GIStructInfo *info, const char *namespace_, Handle<FunctionTemplate> object_template) {
+    int number_of_methods = g_struct_info_get_n_methods(info);
+    for (int i = 0; i < number_of_methods; i++) {
         GIFunctionInfo *func = g_struct_info_get_method(info, i);
         const char *func_name = g_base_info_get_name(func);
         GIFunctionInfoFlags func_flag = g_function_info_get_flags(func);
-        // Determine if method is static one.
-        // If given function is neither method nor constructor, it's most likely static method.
-        // In such case, do not set prototype method.
-        /*if (func_flag & GI_FUNCTION_IS_METHOD) {
-            NODE_SET_PROTOTYPE_METHOD(t, func_name, CallMethod);
-            printf ("REGISTER STRUCT METHOD '%s' \n", g_function_info_get_symbol (func));*/
+
         if ((func_flag & GI_FUNCTION_IS_CONSTRUCTOR)) {
             // Create new function
             Local<FunctionTemplate> callback_func = Nan::New<v8::FunctionTemplate>(Func::CallStaticMethod);
-            // Set name
-            // callback_func->SetName(Nan::New<String>(func_name).ToLocalChecked());
+
             // Create external to hold GIBaseInfo and set it
             v8::Handle<v8::External> info_ptr = Nan::New<v8::External>((void*)g_base_info_ref(func));
             Nan::SetPrivate(callback_func->GetFunction(), Nan::New("GIInfo").ToLocalChecked(), info_ptr);
+
             // Set v8 function
-            t->Set(Nan::New<String>(func_name).ToLocalChecked(), callback_func);
-            //printf ("REGISTER STRUCT CTR '%s' \n", g_function_info_get_symbol (func));
+            object_template->Set(Nan::New(func_name).ToLocalChecked(), callback_func);
         } else {
-            Nan::SetPrototypeMethod(t, func_name, CallMethod);
-            //printf ("REGISTER STRUCT METHOD '%s' \n", g_function_info_get_symbol (func));
+            Nan::SetPrototypeMethod(object_template, func_name, CallMethod);
         }
         g_base_info_unref(func);
     }
