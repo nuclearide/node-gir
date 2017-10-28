@@ -282,6 +282,7 @@ NAN_PROPERTY_GETTER(PropertyGetHandler)
                 g_base_info_unref(prop_info);
 
             info.GetReturnValue().Set(res);
+            return;
         }
     }
 
