@@ -42,7 +42,7 @@ Handle<Value> GIRStruct::New(gpointer c_structure, GIStructInfo *info)
     }
 
     if (res == Nan::Null()) {
-
+        Nan::ThrowTypeError("unknown gobject!");
     }
 
     if (!res.IsEmpty()) {

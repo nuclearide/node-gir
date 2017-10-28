@@ -19,9 +19,9 @@ button.connect("clicked", function() {
     button.setLabel(`clicked: ${clicked_count++} times`);
 });
 
-// button.connect('size-allocate', function() {
-//     console.log('hello');
-// });
+button.connect('size-allocate', function() {
+    console.log('hello');
+});
 
 win.showAll();
 Gtk.main();
