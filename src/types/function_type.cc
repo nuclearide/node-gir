@@ -43,8 +43,9 @@ NAN_METHOD(GIRFunction::Execute)
             g_base_info_get_name(func),
             g_function_info_get_symbol(func));
 
-    if(func) {
+    if (func) {
         info.GetReturnValue().Set(Func::Call(NULL, func, info, TRUE));
+        return;
     }
     else {
         Nan::ThrowError("no such function");
