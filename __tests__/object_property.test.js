@@ -1,10 +1,11 @@
 const { load, Gtk } = require('../');
+
 const GdkPixbuf = load('GdkPixbuf');
 
 const pixbuf = new GdkPixbuf.Pixbuf(0, false, 1, 1, 1);
 const win = new Gtk.Window({
     type: Gtk.WindowType.toplevel,
-    title: "Node.JS GTK Window"
+    title: "Node.JS GTK Window",
 });
 
 describe('Gtk.Object', function() {

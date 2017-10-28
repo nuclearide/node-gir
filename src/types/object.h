@@ -12,10 +12,12 @@ using namespace v8;
 
 class GIRObject;
 
+typedef Nan::Persistent<FunctionTemplate, CopyablePersistentTraits<FunctionTemplate>> PersistentFunctionTemplate;
+
 struct ObjectFunctionTemplate {
     char *type_name;
     GIObjectInfo *info;
-    Local<FunctionTemplate> function; // FIXME: i'm very sure this can't be a Local<T>. It should be a Nan::Persistent to make sure V8 doesn't GC it.
+    PersistentFunctionTemplate object_template;
     GType type;
     char *namespace_;
 };
@@ -42,16 +44,17 @@ class GIRObject : public Nan::ObjectWrap {
     GIBaseInfo *info;
 
     static std::vector<InstanceData> instances;
-    static std::vector<ObjectFunctionTemplate> templates;
+    static std::vector<ObjectFunctionTemplate *> templates;
 
     static Local<Value> New(GObject *obj, GIObjectInfo *info);
     static Local<Value> New(GObject *obj, GType t);
     static NAN_METHOD(New);
 
     static Local<Object> Prepare(GIObjectInfo *object_info);
-    static void RegisterMethods(GIObjectInfo *object_info, const char *namespace_, Local<FunctionTemplate> object_template);
-    static void SetCustomFields(Local<FunctionTemplate> object_template, GIObjectInfo *object_info);
-    static void SetCustomPrototypeMethods(Local<FunctionTemplate> object_template);
+    static void RegisterMethods(GIObjectInfo *object_info, const char *namespace_, Local<FunctionTemplate> &object_template);
+    static void SetCustomFields(Local<FunctionTemplate> &object_template, GIObjectInfo *object_info);
+    static void SetCustomPrototypeMethods(Local<FunctionTemplate> &object_template);
+    static void ExtendParent(Local<FunctionTemplate> &object_template, GIObjectInfo *object_info);
 
     static void Initialize(Local<Object> target, char *namespace_);
 
@@ -66,6 +69,8 @@ class GIRObject : public Nan::ObjectWrap {
 
     static void PushInstance(GIRObject *obj, Local<Value>);
     static Local<Value> GetInstance(GObject *obj);
+    static ObjectFunctionTemplate* CreateObjectTemplate(GIObjectInfo *object_info);
+    static ObjectFunctionTemplate* FindOrCreateTemplateFromObjectInfo(GIObjectInfo *object_info);
 
     static GIFunctionInfo *FindMethod(GIObjectInfo *inf, char *name);
     static GIFunctionInfo *FindProperty(GIObjectInfo *inf, char *name);
@@ -75,7 +80,7 @@ class GIRObject : public Nan::ObjectWrap {
     static GIFunctionInfo *FindVFunc(GIObjectInfo *inf, char *name);
 
   private:
-    static void SetMethod(Local<FunctionTemplate> &target, GIFunctionInfo &function_info);
+    static void SetMethod(Local<FunctionTemplate> &target, GIFunctionInfo *function_info);
 
     static Local<ObjectTemplate> PropertyList(GIObjectInfo *info);
     static Local<ObjectTemplate> MethodList(GIObjectInfo *info);

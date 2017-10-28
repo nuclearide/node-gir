@@ -20,7 +20,7 @@ namespace gir {
 
 void empty_func(void) {};
 
-std::vector<ObjectFunctionTemplate> GIRObject::templates;
+std::vector<ObjectFunctionTemplate *> GIRObject::templates;
 std::vector<InstanceData> GIRObject::instances;
 GIPropertyInfo *g_object_info_find_property(GIObjectInfo *info, char *name);
 
@@ -68,16 +68,16 @@ Handle<Value> GIRObject::New(GObject *obj_, GIObjectInfo *info_)
         return res;
     }
     Handle<Value> arg = Nan::New<Boolean>(false);
-    std::vector<ObjectFunctionTemplate>::iterator it;
 
     GIObjectInfo *object_info = _get_object_info(G_OBJECT_TYPE(obj_), info_);
     if (!object_info) {
         gchar *msg = g_strdup_printf("ObjectInfo not found for '%s'", G_OBJECT_TYPE_NAME(obj_));
         Nan::ThrowTypeError(msg);
     }
-    for (it = templates.begin(); it != templates.end(); ++it) {
-        if (g_base_info_equal(object_info, it->info)) {
-            res = it->function->GetFunction()->NewInstance(1, &arg);
+    for (auto it = templates.begin(); it != templates.end(); ++it) {
+        ObjectFunctionTemplate *oft = *it;
+        if (g_base_info_equal(object_info, oft->info)) {
+            res = Nan::New(oft->object_template)->GetFunction()->NewInstance(1, &arg);
             if (!res.IsEmpty()) {
                 GIRObject *e = ObjectWrap::Unwrap<GIRObject>(res->ToObject());
                 e->info = object_info;
@@ -107,7 +107,6 @@ Handle<Value> GIRObject::New(GObject *obj_, GType t)
     }
 
     Handle<Value> arg = Nan::New<Boolean>(false);
-    std::vector<ObjectFunctionTemplate>::iterator it;
     GIBaseInfo *base_info = g_irepository_find_by_gtype(NamespaceLoader::repo, t);
     if (base_info == nullptr) {
         base_info = g_irepository_find_by_gtype(NamespaceLoader::repo, g_type_parent(t));
@@ -115,12 +114,13 @@ Handle<Value> GIRObject::New(GObject *obj_, GType t)
     /*printf("CREATE NEW OBJECT WITH TYPE '%s' BASE '%s' \n",
             G_OBJECT_TYPE_NAME(t),
             g_base_info_get_name(base_info)); */
-    for (it = templates.begin(); it != templates.end(); ++it) {
-        if (t == it->type) {
-            res = it->function->GetFunction()->NewInstance(1, &arg);
+    for (auto it = templates.begin(); it != templates.end(); ++it) {
+        ObjectFunctionTemplate *oft = *it;
+        if (t == oft->type) {
+            res = Nan::New(oft->object_template)->GetFunction()->NewInstance(1, &arg);
             if (!res.IsEmpty()) {
                 GIRObject *e = ObjectWrap::Unwrap<GIRObject>(res->ToObject());
-                e->info = it->info;
+                e->info = oft->info;
                 e->obj = obj_;
                 e->abstract = false;
                 return res;
@@ -143,12 +143,12 @@ NAN_METHOD(GIRObject::New)
     String::Utf8Value className(info.Callee()->GetName());
 
     debug_printf ("CTR '%s' \n", *className);
-    std::vector<ObjectFunctionTemplate>::iterator it;
 
     GIObjectInfo *objinfo = nullptr;
-    for (it = templates.begin(); it != templates.end(); ++it) {
-        if (strcmp(it->type_name, *className) == 0) {
-            objinfo = it->info;
+    for (auto it = templates.begin(); it != templates.end(); ++it) {
+        ObjectFunctionTemplate *oft = *it;
+        if (strcmp(oft->type_name, *className) == 0) {
+            objinfo = oft->info;
             break;
         }
     }
@@ -329,29 +329,26 @@ NAN_PROPERTY_SETTER(PropertySetHandler)
     info.GetReturnValue().Set(Nan::New<v8::Boolean>(info.This()->GetPrototype()->ToObject()->Set(property, value)));
 }
 
-Local<Object> GIRObject::Prepare(GIObjectInfo *object_info) {
-    char *name = (char*)g_base_info_get_name(object_info);
-    const char *namespace_ = g_base_info_get_namespace(object_info);
-    g_base_info_ref(object_info);
-
+ObjectFunctionTemplate* GIRObject::CreateObjectTemplate(GIObjectInfo *object_info) {
     Local<FunctionTemplate> object_template = Nan::New<FunctionTemplate>(GIRObject::New);
-    object_template->SetClassName(Nan::New(name).ToLocalChecked());
 
-    ObjectFunctionTemplate oft;
-    oft.type_name = name;
-    oft.info = object_info;
-    oft.function = object_template; // TODO: refactor oft.function to 'object_template' for consistency in naming! function can be confusing!
-    oft.type = g_registered_type_info_get_g_type(object_info);
-    oft.namespace_ = (char*)namespace_;
-
+    ObjectFunctionTemplate *oft = new ObjectFunctionTemplate(); // TODO: where do we deallocate? When the namespace object (the node module) is collected?
+    g_base_info_ref(object_info); // ref the info because we're storing an reference on 'oft'
+    oft->info = object_info;
+    oft->object_template = PersistentFunctionTemplate(object_template); // TODO: refactor oft->object_template to 'object_template' for consistency in naming! function can be confusing!
+    oft->type = g_registered_type_info_get_g_type(object_info);
+    oft->type_name = (char*)g_base_info_get_name(object_info);
+    oft->namespace_ = (char*)g_base_info_get_namespace(object_info);
     GIRObject::templates.push_back(oft);
+
+    // set the class name
+    object_template->SetClassName(Nan::New(oft->type_name).ToLocalChecked());
 
     // Create instance template
     v8::Local<v8::ObjectTemplate> object_instance_template = object_template->InstanceTemplate();
     object_instance_template->SetInternalFieldCount(1);
     // Create external to hold GIBaseInfo and set it
-    v8::Handle<v8::External> info_handle = Nan::New<v8::External>((void*)g_base_info_ref(object_info));
-
+    v8::Handle<v8::External> info_handle = Nan::New<v8::External>((void*)g_base_info_ref(oft->info));
     // Set properties handlers
     SetNamedPropertyHandler(
         object_instance_template,
@@ -363,59 +360,57 @@ Local<Object> GIRObject::Prepare(GIObjectInfo *object_info) {
         info_handle
     );
 
-    int number_of_constants = g_object_info_get_n_constants(object_info);
+    int number_of_constants = g_object_info_get_n_constants(oft->info);
     for (int i = 0; i < number_of_constants; i++) {
-        GIConstantInfo *constant = g_object_info_get_constant(object_info, i);
+        GIConstantInfo *constant = g_object_info_get_constant(oft->info, i);
         object_template->Set(Nan::New(g_base_info_get_name(constant)).ToLocalChecked(), Nan::New(i)); // TODO: i'm fairly sure we shouldn't be setting just the index on the object, but rather the actual value of the constant?
         g_base_info_unref(constant);
     }
 
-    RegisterMethods(object_info, namespace_, object_template);
+    RegisterMethods(oft->info, oft->namespace_, object_template);
     GIRObject::SetCustomFields(object_template, object_info);
     GIRObject::SetCustomPrototypeMethods(object_template);
+    GIRObject::ExtendParent(object_template, oft->info);
 
-    // TODO: JS prototype inheritance using object_template->Inherit(another_object_template);
-    // The old implementation to support inheritance made use of the list of GIRObject::templates,
-    // iterated over them and if the template->info == g_object_info_get_parent(template->info)
-    // then it would do the inheritance.
-    // This required all the classes from a gi namespace to be loaded and causes problems when you
-    // only want to load some of the GI library. This is really important because GTK signals sometimes
-    // pass GDK resources. You don't want to load the entire GDK library just to use the 'size-allocate'
-    // GTK signal!!!
-    // So an alternative solution to inheritance is required.
-    // The old function used in the inheritance solution was GIRObject::Initialize
+    return oft;
+}
+
+Local<Object> GIRObject::Prepare(GIObjectInfo *object_info) {
+    ObjectFunctionTemplate* oft = FindOrCreateTemplateFromObjectInfo(object_info);
 
     // we want to return a Local<Object> that is our JS class. Remember that JS classes
     // are just functions! There is a 'NewInstance()' method on v8::Function!
-    return object_template->GetFunction();
+    return Nan::New(oft->object_template)->GetFunction();
 }
 
-// TODO: reimplement
-// This needs to do something else than loop through already loaded templates.
-// What if someone needs to create just 1 object from another library (such as
-// an argument to a signal).
-void GIRObject::Initialize(Handle<Object> target, char *namespace_)
-{
-    // this gets called when all classes have been initialized
-    std::vector<ObjectFunctionTemplate>::iterator it;
-    std::vector<ObjectFunctionTemplate>::iterator temp;
-    GIObjectInfo* parent;
+void GIRObject::ExtendParent(Local<FunctionTemplate> &object_template, GIObjectInfo *object_info) {
+    GIObjectInfo *parent_object_info = g_object_info_get_parent(object_info);
 
-    for (it = templates.begin(); it != templates.end(); ++it) {
-        parent = g_object_info_get_parent(it->info);
-        if (strcmp(it->namespace_, namespace_) != 0 || !parent) {
-            continue;
-        }
+    // if there is no parent to extend, then we can just no-op (do nothing).
+    if (!parent_object_info) {
+        return;
+    }
 
-        for (temp = templates.begin(); temp != templates.end(); ++temp) {
-            if (g_base_info_equal(temp->info, parent)) {
-                it->function->Inherit(temp->function);
-            }
+    // find or create an ObjectFunctionTemplate for the parent object
+    ObjectFunctionTemplate *oft = GIRObject::FindOrCreateTemplateFromObjectInfo(parent_object_info);
+
+    // make the input object template inherit (extend) the parent object
+    object_template->Inherit(Nan::New(oft->object_template));
+
+    // cleanup
+    g_base_info_unref(parent_object_info);
+}
+
+ObjectFunctionTemplate* GIRObject::FindOrCreateTemplateFromObjectInfo(GIObjectInfo *object_info) {
+    for (auto oft : GIRObject::templates) {
+        if (g_base_info_equal(object_info, oft->info)) {
+            return oft;
         }
     }
+    return GIRObject::CreateObjectTemplate(object_info);
 }
 
-void GIRObject::SetCustomFields(Local<FunctionTemplate> object_template, GIObjectInfo *object_info) {
+void GIRObject::SetCustomFields(Local<FunctionTemplate> &object_template, GIObjectInfo *object_info) {
     // TODO: evaluate if we want to put these fields on all our JS land GObjects.
     // it's kinda random and I feel like client applications might misuse them for things
     // we never intended. Could cause potential for a 'legacy' bit of stuff we have to
@@ -430,7 +425,7 @@ void GIRObject::SetCustomFields(Local<FunctionTemplate> object_template, GIObjec
     object_template->Set(Nan::New("__abstract__").ToLocalChecked(), Nan::New<Boolean>(g_object_info_get_abstract(object_info)));
 }
 
-void GIRObject::SetCustomPrototypeMethods(Local<FunctionTemplate> object_template) {
+void GIRObject::SetCustomPrototypeMethods(Local<FunctionTemplate> &object_template) {
     Nan::SetPrototypeMethod(object_template, "__get_property__", GIRObject::GetProperty);
     Nan::SetPrototypeMethod(object_template, "__set_property__", GIRObject::SetProperty);
     Nan::SetPrototypeMethod(object_template, "__get_interface__", GIRObject::GetInterface);
@@ -886,45 +881,50 @@ Handle<ObjectTemplate> GIRObject::MethodList(GIObjectInfo *info)
     return list;
 }
 
-void GIRObject::RegisterMethods(GIObjectInfo *object_info, const char *namespace_, Handle<FunctionTemplate> object_template) {
+void GIRObject::RegisterMethods(GIObjectInfo *object_info, const char *namespace_, Handle<FunctionTemplate> &object_template) {
     bool is_object_info = GI_IS_OBJECT_INFO(object_info);
-    // Register interface methods
-    if (is_object_info) {
-        int n_ifaces = g_object_info_get_n_interfaces(object_info);
-        for (int i = 0; i < n_ifaces; i++) {
-            GIInterfaceInfo *iface_info = g_object_info_get_interface(object_info, i);
-            // Register prerequisities
-            int n_pre = g_interface_info_get_n_prerequisites(iface_info);
-            for (int j = 0; j < n_pre; j++) {
-                GIBaseInfo *pre_info = g_interface_info_get_prerequisite(iface_info, j);
-                GIRObject::RegisterMethods(pre_info, namespace_, object_template);
-                g_base_info_unref(pre_info);
-            }
-            GIRObject::RegisterMethods(iface_info, namespace_, object_template);
-            g_base_info_unref(iface_info);
-        }
-    }
 
-    bool first = true;
-    int gcounter = 0;
-    g_base_info_ref(object_info);
+    // TODO: I don't know why this function did so much looping and recursive
+    // stuff. I think it was implemented this way before support for inheritance
+    // was added. I think i want to remove this code but i'm scared (classic).
+    // so, TODO!!!, remove this code.
+    // // Register interface methods
+    // if (is_object_info) {
+    //     int n_ifaces = g_object_info_get_n_interfaces(object_info);
+    //     for (int i = 0; i < n_ifaces; i++) {
+    //         GIInterfaceInfo *iface_info = g_object_info_get_interface(object_info, i);
+    //         // Register prerequisities
+    //         int n_pre = g_interface_info_get_n_prerequisites(iface_info);
+    //         for (int j = 0; j < n_pre; j++) {
+    //             GIBaseInfo *pre_info = g_interface_info_get_prerequisite(iface_info, j);
+    //             GIRObject::RegisterMethods(pre_info, namespace_, object_template);
+    //             g_base_info_unref(pre_info);
+    //         }
+    //         GIRObject::RegisterMethods(iface_info, namespace_, object_template);
+    //         g_base_info_unref(iface_info);
+    //     }
+    // }
 
-    while (true) {
-        if (!first) {
-            GIObjectInfo *parent = nullptr;
-            if (GI_IS_OBJECT_INFO(object_info))
-                parent = g_object_info_get_parent(object_info);
-            if (!parent) {
-                g_base_info_unref(object_info);
-                return;
-            }
-            if (g_base_info_equal(parent, object_info)) {
-                g_base_info_unref(object_info);
-                return;
-            }
-            g_base_info_unref(object_info);
-            object_info = parent;
-        }
+    // bool first = true;
+    // int gcounter = 0;
+    // g_base_info_ref(object_info);
+
+    // while (true) {
+    //     if (!first) {
+    //         GIObjectInfo *parent = nullptr;
+    //         if (GI_IS_OBJECT_INFO(object_info))
+    //             parent = g_object_info_get_parent(object_info);
+    //         if (!parent) {
+    //             g_base_info_unref(object_info);
+    //             return;
+    //         }
+    //         if (g_base_info_equal(parent, object_info)) {
+    //             g_base_info_unref(object_info);
+    //             return;
+    //         }
+    //         g_base_info_unref(object_info);
+    //         object_info = parent;
+    //     }
 
         int l = 0;
         if (is_object_info) {
@@ -933,19 +933,19 @@ void GIRObject::RegisterMethods(GIObjectInfo *object_info, const char *namespace
             l = g_interface_info_get_n_methods(object_info);
         }
 
-        for (int i=0; i<l; i++) {
+        for (int i = 0; i < l; i++) {
             GIFunctionInfo *func = nullptr;
             if (is_object_info) {
                 func = g_object_info_get_method(object_info, i);
             } else {
                 func = g_interface_info_get_method(object_info, i);
             }
-            GIRObject::SetMethod(object_template, *func);
+            GIRObject::SetMethod(object_template, func);
             g_base_info_unref(func);
         }
-        gcounter += l;
-        first = false;
-    }
+    //     gcounter += l;
+    //     first = false;
+    // }
 }
 
 /**
@@ -954,12 +954,16 @@ void GIRObject::RegisterMethods(GIObjectInfo *object_info, const char *namespace
  * flags of the GIFunctionInfo.
  * It will also apply a snake_case to camelCase conversion to function name.
  */
-void GIRObject::SetMethod(Local<FunctionTemplate> &target, GIFunctionInfo &function_info)
-{
-    const char *native_name = g_base_info_get_name(&function_info);
-    const char *js_name = Util::toCamelCase(std::string(native_name)).c_str();
+void GIRObject::SetMethod(Local<FunctionTemplate> &target, GIFunctionInfo *function_info) {
+    const char *native_name = g_base_info_get_name(function_info);
 
-    GIFunctionInfoFlags flags = g_function_info_get_flags(&function_info);
+    // we want to get a c_str() from this output std::string of toCamelCase
+    // we need to keep a reference to the std::string so the underlying c_str()
+    // is safe to use! That's why we have 2 line here not 1.
+    std::string js_name_str_copy = Util::toCamelCase(std::string(native_name));
+    const char *js_name = js_name_str_copy.c_str();
+
+    GIFunctionInfoFlags flags = g_function_info_get_flags(function_info);
     if (flags & GI_FUNCTION_IS_METHOD) {
         // if the function is a method, then we want to set it on the prototype
         // of the target, as a GI_FUNCTION_IS_METHOD is an instance method.
@@ -971,7 +975,7 @@ void GIRObject::SetMethod(Local<FunctionTemplate> &target, GIFunctionInfo &funct
 
         // set a private value on the function. this is used to lookup the GIFunctionInfo
         // inside the Func::CallStaticMethod function. TODO: find an alternative to this design!
-        Local<External> function_info_extern = Nan::New<External>((void *)g_base_info_ref(&function_info));
+        Local<External> function_info_extern = Nan::New<External>((void *)g_base_info_ref(function_info));
         Nan::SetPrivate(static_function->GetFunction(), Nan::New("GIInfo").ToLocalChecked(), function_info_extern);
 
         // set the function on the target.

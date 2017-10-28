@@ -36,7 +36,7 @@ Handle<Value> GIRStruct::New(gpointer c_structure, GIStructInfo *info)
 
     for (it = templates.begin(); it != templates.end(); ++it) {
         if (g_base_info_equal(info, it->info)) {
-            res = it->function->GetFunction()->NewInstance();
+            res = Nan::New(it->function)->GetFunction()->NewInstance();
             break;
         }
     }
@@ -216,7 +216,7 @@ Local<Value> GIRStruct::Prepare(GIStructInfo *info) {
     StructFunctionTemplate oft;
     oft.type_name = name;
     oft.info = info;
-    oft.function = object_template;
+    oft.function = PersistentFunctionTemplate(object_template);
     oft.type = g_registered_type_info_get_g_type(info);
     oft.namespace_ = (char*)namespace_;
 
@@ -243,7 +243,7 @@ void GIRStruct::Initialize(Handle<Object> target, char *namespace_)
 
     for (it = templates.begin(); it != templates.end(); ++it) {
         if (strcmp(it->namespace_, namespace_) == 0) {
-            target->Set(Nan::New<String>(g_base_info_get_name(it->info)).ToLocalChecked(), it->function->GetFunction());
+            target->Set(Nan::New<String>(g_base_info_get_name(it->info)).ToLocalChecked(), Nan::New(it->function)->GetFunction());
         }
     }
 }

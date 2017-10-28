@@ -12,10 +12,12 @@ using namespace v8;
 
 class GIRStruct;
 
+typedef Nan::Persistent<FunctionTemplate, CopyablePersistentTraits<FunctionTemplate>> PersistentFunctionTemplate;
+
 struct StructFunctionTemplate {
     char *type_name;
     GIObjectInfo *info;
-    v8::Handle<v8::FunctionTemplate> function;
+    PersistentFunctionTemplate function;
     GType type;
     char *namespace_;
 };

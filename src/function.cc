@@ -213,7 +213,6 @@ v8::Handle<v8::Value> Func::CallAndGetPtr(GObject *obj, GIFunctionInfo *info, co
 }
 
 Local<Value> Func::Call(GObject *obj, GIFunctionInfo *info, const Nan::FunctionCallbackInfo<v8::Value>&args, bool ignore_function_name) {
-
     if(g_function_info_get_flags(info) == GI_FUNCTION_IS_CONSTRUCTOR) {
         // rly not sure about this
         debug_printf("constructor! returns %s\n", g_type_tag_to_string( g_type_info_get_tag( g_callable_info_get_return_type(info) ) ));
