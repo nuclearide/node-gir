@@ -58,7 +58,7 @@ gchar *utf8StringFromValue(v8::Handle<v8::Value> value) {
 string toCamelCase(const string input) {
   string output;
   bool next_is_capital = false;
-  for (int i = 0; i < input.size(); i++) {
+  for (size_t i = 0; i < input.size(); i++) {
     auto letter = input[i];
     if (next_is_capital) {
       output.append(1, toupper(letter));
