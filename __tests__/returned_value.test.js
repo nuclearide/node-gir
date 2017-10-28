@@ -17,6 +17,7 @@ describe('Return value', function() {
     });
 
     it('char', function() {
+        win.title = 'Lancelot';
         expect(win.title).toEqual('Lancelot');
         expect(typeof(win.title)).toEqual('string');
     });
