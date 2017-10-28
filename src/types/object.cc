@@ -322,6 +322,7 @@ NAN_PROPERTY_SETTER(PropertySetHandler)
                 g_value_unset(&gvalue);
             }
             info.GetReturnValue().Set(Nan::New(value_is_set));
+            return;
         }
     }
 
