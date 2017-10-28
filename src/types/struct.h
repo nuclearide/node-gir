@@ -8,6 +8,8 @@
 
 namespace gir {
 
+using namespace v8;
+
 class GIRStruct;
 
 struct StructFunctionTemplate {
@@ -43,8 +45,8 @@ class GIRStruct : public Nan::ObjectWrap {
     static v8::Handle<v8::Value> New(gpointer c_structure, GIStructInfo *info);
     static NAN_METHOD(New);
 
-    static void Prepare(v8::Handle<v8::Object> target, GIObjectInfo *info);
-    static void RegisterMethods(v8::Handle<v8::Object> target, GIObjectInfo *info, const char *namespace_, v8::Handle<v8::FunctionTemplate> t);
+    static Local<Value> Prepare(GIStructInfo *info);
+    static void RegisterMethods(GIStructInfo *info, const char *namespace_, v8::Handle<v8::FunctionTemplate> object_template);
 
     static void Initialize(v8::Handle<v8::Object> target, char *namespace_);
 

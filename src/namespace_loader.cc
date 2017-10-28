@@ -7,9 +7,10 @@
 
 #include <string.h>
 
-using namespace v8;
-
 namespace gir {
+
+using namespace std;
+using namespace v8;
 
 GIRepository *NamespaceLoader::repo = nullptr;
 std::map<char *, GITypelib*> NamespaceLoader::type_libs;
@@ -54,7 +55,8 @@ Handle<Value> NamespaceLoader::LoadNamespace(char *namespace_, char *version) {
 }
 
 Handle<Value> NamespaceLoader::BuildClasses(char *namespace_) {
-    Handle<Object> exports = Nan::New<Object>();
+    Handle<Object> module = Nan::New<Object>();
+    Local<Value> exported_value = Nan::Null();
 
     int length = g_irepository_get_n_infos(repo, namespace_);
     for (int i = 0; i < length; i++) {
@@ -64,25 +66,25 @@ Handle<Value> NamespaceLoader::BuildClasses(char *namespace_) {
             case GI_INFO_TYPE_BOXED:
                 //FIXME: GIStructInfo or GIUnionInfo
             case GI_INFO_TYPE_STRUCT:
-                GIRStruct::Prepare(exports, (GIStructInfo*)info);
+                exported_value = GIRStruct::Prepare((GIStructInfo*)info);
                 break;
             case GI_INFO_TYPE_ENUM:
-                ParseEnum((GIEnumInfo*)info, exports);
+                ParseEnum((GIEnumInfo*)info, module);
                 break;
             case GI_INFO_TYPE_FLAGS:
-                ParseFlags((GIEnumInfo*)info, exports);
+                ParseFlags((GIEnumInfo*)info, module);
                 break;
             case GI_INFO_TYPE_OBJECT:
-                GIRObject::Prepare(exports, (GIObjectInfo*)info);
+                exported_value = GIRObject::Prepare((GIObjectInfo*)info);
                 break;
             case GI_INFO_TYPE_INTERFACE:
-                ParseInterface((GIInterfaceInfo*)info, exports);
+                ParseInterface((GIInterfaceInfo*)info, module);
                 break;
             case GI_INFO_TYPE_UNION:
-                ParseUnion((GIUnionInfo*)info, exports);
+                ParseUnion((GIUnionInfo*)info, module);
                 break;
             case GI_INFO_TYPE_FUNCTION:
-                GIRFunction::Initialize(exports, (GIFunctionInfo*)info);
+                GIRFunction::Initialize(module, (GIFunctionInfo*)info);
                 break;
             case GI_INFO_TYPE_INVALID:
             case GI_INFO_TYPE_CALLBACK:
@@ -100,14 +102,18 @@ Handle<Value> NamespaceLoader::BuildClasses(char *namespace_) {
                 break;
         }
 
+        if (exported_value != Nan::Null()) {
+            module->Set(Nan::New(g_base_info_get_name(info)).ToLocalChecked(), exported_value);
+            exported_value = Nan::Null();
+        }
+
         g_base_info_unref(info);
     }
 
     // when all classes have been created we can inherit them
-    GIRObject::Initialize(exports, namespace_);
-    GIRStruct::Initialize(exports, namespace_);
+    GIRStruct::Initialize(module, namespace_);
 
-    return exports;
+    return module;
 }
 
 void NamespaceLoader::ParseStruct(GIStructInfo *info, Handle<Object> &exports) {

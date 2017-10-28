@@ -8,12 +8,14 @@
 
 namespace gir {
 
+using namespace v8;
+
 class GIRObject;
 
 struct ObjectFunctionTemplate {
     char *type_name;
     GIObjectInfo *info;
-    v8::Handle<v8::FunctionTemplate> function;
+    Local<FunctionTemplate> function; // FIXME: i'm very sure this can't be a Local<T>. It should be a Nan::Persistent to make sure V8 doesn't GC it.
     GType type;
     char *namespace_;
 };
@@ -24,7 +26,7 @@ struct MarshalData {
 };
 
 struct InstanceData {
-    v8::Handle<v8::Value> instance;
+    Local<Value> instance;
     GIRObject *obj;
 };
 
@@ -42,15 +44,16 @@ class GIRObject : public Nan::ObjectWrap {
     static std::vector<InstanceData> instances;
     static std::vector<ObjectFunctionTemplate> templates;
 
-    static v8::Handle<v8::Value> New(GObject *obj, GIObjectInfo *info);
-    static v8::Handle<v8::Value> New(GObject *obj, GType t);
+    static Local<Value> New(GObject *obj, GIObjectInfo *info);
+    static Local<Value> New(GObject *obj, GType t);
     static NAN_METHOD(New);
 
-    static void Prepare(v8::Handle<v8::Object> target, GIObjectInfo *info);
-    static void SetPrototypeMethods(v8::Local<v8::FunctionTemplate> t, char *name);
-    static void RegisterMethods(v8::Handle<v8::Object> target, GIObjectInfo *info, const char *namespace_, v8::Handle<v8::FunctionTemplate> t);
+    static Local<Object> Prepare(GIObjectInfo *object_info);
+    static void RegisterMethods(GIObjectInfo *object_info, const char *namespace_, Local<FunctionTemplate> object_template);
+    static void SetCustomFields(Local<FunctionTemplate> object_template, GIObjectInfo *object_info);
+    static void SetCustomPrototypeMethods(Local<FunctionTemplate> object_template);
 
-    static void Initialize(v8::Handle<v8::Object> target, char *namespace_);
+    static void Initialize(Local<Object> target, char *namespace_);
 
     static NAN_METHOD(CallMethod);
     static NAN_METHOD(CallUnknownMethod);
@@ -61,8 +64,8 @@ class GIRObject : public Nan::ObjectWrap {
     static NAN_METHOD(CallVFunc);
     static NAN_METHOD(Connect);
 
-    static void PushInstance(GIRObject *obj, v8::Handle<v8::Value>);
-    static v8::Handle<v8::Value> GetInstance(GObject *obj);
+    static void PushInstance(GIRObject *obj, Local<Value>);
+    static Local<Value> GetInstance(GObject *obj);
 
     static GIFunctionInfo *FindMethod(GIObjectInfo *inf, char *name);
     static GIFunctionInfo *FindProperty(GIObjectInfo *inf, char *name);
@@ -72,16 +75,16 @@ class GIRObject : public Nan::ObjectWrap {
     static GIFunctionInfo *FindVFunc(GIObjectInfo *inf, char *name);
 
   private:
-    static void SetMethod(v8::Local<v8::FunctionTemplate> &target, GIFunctionInfo &function_info);
+    static void SetMethod(Local<FunctionTemplate> &target, GIFunctionInfo &function_info);
 
-    static v8::Handle<v8::ObjectTemplate> PropertyList(GIObjectInfo *info);
-    static v8::Handle<v8::ObjectTemplate> MethodList(GIObjectInfo *info);
-    static v8::Handle<v8::ObjectTemplate> InterfaceList(GIObjectInfo *info);
-    static v8::Handle<v8::ObjectTemplate> FieldList(GIObjectInfo *info);
-    static v8::Handle<v8::ObjectTemplate> SignalList(GIObjectInfo *info);
-    static v8::Handle<v8::ObjectTemplate> VFuncList(GIObjectInfo *info);
+    static Local<ObjectTemplate> PropertyList(GIObjectInfo *info);
+    static Local<ObjectTemplate> MethodList(GIObjectInfo *info);
+    static Local<ObjectTemplate> InterfaceList(GIObjectInfo *info);
+    static Local<ObjectTemplate> FieldList(GIObjectInfo *info);
+    static Local<ObjectTemplate> SignalList(GIObjectInfo *info);
+    static Local<ObjectTemplate> VFuncList(GIObjectInfo *info);
 
-    static v8::Handle<v8::Value> ToParams(v8::Handle<v8::Value> val, GParameter** p, int *length, GIObjectInfo *info);
+    static Local<Value> ToParams(Local<Value> val, GParameter** p, int *length, GIObjectInfo *info);
     static void DeleteParams(GParameter* params, int length);
 };
 

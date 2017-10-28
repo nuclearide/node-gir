@@ -328,57 +328,71 @@ NAN_PROPERTY_SETTER(PropertySetHandler)
     info.GetReturnValue().Set(Nan::New<v8::Boolean>(info.This()->GetPrototype()->ToObject()->Set(property, value)));
 }
 
-void GIRObject::Prepare(Handle<Object> target, GIObjectInfo *info)
-{
-    char *name = (char*)g_base_info_get_name(info);
-    const char *namespace_ = g_base_info_get_namespace(info);
-    g_base_info_ref(info);
+Local<Object> GIRObject::Prepare(GIObjectInfo *object_info) {
+    char *name = (char*)g_base_info_get_name(object_info);
+    const char *namespace_ = g_base_info_get_namespace(object_info);
+    g_base_info_ref(object_info);
 
-    Local<FunctionTemplate> t = Nan::New<FunctionTemplate>(New);
-    t->SetClassName(Nan::New<String>(name).ToLocalChecked());
+    Local<FunctionTemplate> object_template = Nan::New<FunctionTemplate>(GIRObject::New);
+    object_template->SetClassName(Nan::New(name).ToLocalChecked());
 
     ObjectFunctionTemplate oft;
     oft.type_name = name;
-    oft.info = info;
-    oft.function = t;
-    oft.type = g_registered_type_info_get_g_type(info);
+    oft.info = object_info;
+    oft.function = object_template; // TODO: refactor oft.function to 'object_template' for consistency in naming! function can be confusing!
+    oft.type = g_registered_type_info_get_g_type(object_info);
     oft.namespace_ = (char*)namespace_;
 
-    templates.push_back(oft);
+    GIRObject::templates.push_back(oft);
 
     // Create instance template
-    v8::Local<v8::ObjectTemplate> instance_t = t->InstanceTemplate();
-    instance_t->SetInternalFieldCount(1);
+    v8::Local<v8::ObjectTemplate> object_instance_template = object_template->InstanceTemplate();
+    object_instance_template->SetInternalFieldCount(1);
     // Create external to hold GIBaseInfo and set it
-    v8::Handle<v8::External> info_handle = Nan::New<v8::External>((void*)g_base_info_ref(info));
+    v8::Handle<v8::External> info_handle = Nan::New<v8::External>((void*)g_base_info_ref(object_info));
+
     // Set properties handlers
-    SetNamedPropertyHandler(instance_t,
+    SetNamedPropertyHandler(
+        object_instance_template,
         PropertyGetHandler,
         PropertySetHandler,
         PropertyQueryHandler,
         nullptr,
         nullptr,
-        info_handle);
+        info_handle
+    );
 
-    t->Set(Nan::New<v8::String>("__properties__").ToLocalChecked(), PropertyList(info));
-    t->Set(Nan::New<v8::String>("__methods__").ToLocalChecked(), MethodList(info));
-    t->Set(Nan::New<v8::String>("__interfaces__").ToLocalChecked(), InterfaceList(info));
-    t->Set(Nan::New<v8::String>("__fields__").ToLocalChecked(), FieldList(info));
-    t->Set(Nan::New<v8::String>("__signals__").ToLocalChecked(), SignalList(info));
-    t->Set(Nan::New<v8::String>("__v_funcs__").ToLocalChecked(), VFuncList(info));
-    t->Set(Nan::New<v8::String>("__abstract__").ToLocalChecked(), Nan::New<Boolean>(g_object_info_get_abstract(info)));
-
-    int l = g_object_info_get_n_constants(info);
-    for (int i=0; i<l; i++) {
-        GIConstantInfo *constant = g_object_info_get_constant(info, i);
-        t->Set(Nan::New<String>(g_base_info_get_name(constant)).ToLocalChecked(), Nan::New<Number>(i));
+    int number_of_constants = g_object_info_get_n_constants(object_info);
+    for (int i = 0; i < number_of_constants; i++) {
+        GIConstantInfo *constant = g_object_info_get_constant(object_info, i);
+        object_template->Set(Nan::New(g_base_info_get_name(constant)).ToLocalChecked(), Nan::New(i)); // TODO: i'm fairly sure we shouldn't be setting just the index on the object, but rather the actual value of the constant?
         g_base_info_unref(constant);
     }
 
-    RegisterMethods(target, info, namespace_, t);
-    SetPrototypeMethods(t, name);
+    RegisterMethods(object_info, namespace_, object_template);
+    GIRObject::SetCustomFields(object_template, object_info);
+    GIRObject::SetCustomPrototypeMethods(object_template);
+
+    // TODO: JS prototype inheritance using object_template->Inherit(another_object_template);
+    // The old implementation to support inheritance made use of the list of GIRObject::templates,
+    // iterated over them and if the template->info == g_object_info_get_parent(template->info)
+    // then it would do the inheritance.
+    // This required all the classes from a gi namespace to be loaded and causes problems when you
+    // only want to load some of the GI library. This is really important because GTK signals sometimes
+    // pass GDK resources. You don't want to load the entire GDK library just to use the 'size-allocate'
+    // GTK signal!!!
+    // So an alternative solution to inheritance is required.
+    // The old function used in the inheritance solution was GIRObject::Initialize
+
+    // we want to return a Local<Object> that is our JS class. Remember that JS classes
+    // are just functions! There is a 'NewInstance()' method on v8::Function!
+    return object_template->GetFunction();
 }
 
+// TODO: reimplement
+// This needs to do something else than loop through already loaded templates.
+// What if someone needs to create just 1 object from another library (such as
+// an argument to a signal).
 void GIRObject::Initialize(Handle<Object> target, char *namespace_)
 {
     // this gets called when all classes have been initialized
@@ -398,24 +412,33 @@ void GIRObject::Initialize(Handle<Object> target, char *namespace_)
             }
         }
     }
-    for (it = templates.begin(); it != templates.end(); ++it) {
-        if (strcmp(it->namespace_, namespace_) == 0) {
-            target->Set(Nan::New<String>(g_base_info_get_name(it->info)).ToLocalChecked(), it->function->GetFunction());
-        }
-    }
 }
 
-void GIRObject::SetPrototypeMethods(Local<FunctionTemplate> t, char *name)
-{
-    Nan::SetPrototypeMethod(t, "__get_property__", GetProperty);
-    Nan::SetPrototypeMethod(t, "__set_property__", SetProperty);
-    Nan::SetPrototypeMethod(t, "__get_interface__", GetInterface);
-    Nan::SetPrototypeMethod(t, "__get_field__", GetField);
-    Nan::SetPrototypeMethod(t, "__call_v_func__", CallMethod);
+void GIRObject::SetCustomFields(Local<FunctionTemplate> object_template, GIObjectInfo *object_info) {
+    // TODO: evaluate if we want to put these fields on all our JS land GObjects.
+    // it's kinda random and I feel like client applications might misuse them for things
+    // we never intended. Could cause potential for a 'legacy' bit of stuff we have to
+    // maintain for no reason. I feel like these shouldn't be exposed! We can remove
+    // a lot of code by removing them as well!
+    object_template->Set(Nan::New("__properties__").ToLocalChecked(), GIRObject::PropertyList(object_info));
+    object_template->Set(Nan::New("__methods__").ToLocalChecked(), GIRObject::MethodList(object_info));
+    object_template->Set(Nan::New("__interfaces__").ToLocalChecked(), GIRObject::InterfaceList(object_info));
+    object_template->Set(Nan::New("__fields__").ToLocalChecked(), GIRObject::FieldList(object_info));
+    object_template->Set(Nan::New("__signals__").ToLocalChecked(), GIRObject::SignalList(object_info));
+    object_template->Set(Nan::New("__v_funcs__").ToLocalChecked(), GIRObject::VFuncList(object_info));
+    object_template->Set(Nan::New("__abstract__").ToLocalChecked(), Nan::New<Boolean>(g_object_info_get_abstract(object_info)));
+}
+
+void GIRObject::SetCustomPrototypeMethods(Local<FunctionTemplate> object_template) {
+    Nan::SetPrototypeMethod(object_template, "__get_property__", GIRObject::GetProperty);
+    Nan::SetPrototypeMethod(object_template, "__set_property__", GIRObject::SetProperty);
+    Nan::SetPrototypeMethod(object_template, "__get_interface__", GIRObject::GetInterface);
+    Nan::SetPrototypeMethod(object_template, "__get_field__", GIRObject::GetField);
+    Nan::SetPrototypeMethod(object_template, "__call_v_func__", GIRObject::CallMethod);
 
     // Add our 'connect' method to the target.
     // This method is used to connect signals to the underlying gobject.
-    Nan::SetPrototypeMethod(t, "connect", Connect);
+    Nan::SetPrototypeMethod(object_template, "connect", Connect);
 }
 
 void GIRObject::PushInstance(GIRObject *obj, Handle<Value> value)
@@ -862,62 +885,61 @@ Handle<ObjectTemplate> GIRObject::MethodList(GIObjectInfo *info)
     return list;
 }
 
-void GIRObject::RegisterMethods(Handle<Object> target, GIObjectInfo *info, const char *namespace_, Handle<FunctionTemplate> t)
-{
-    bool is_object_info = GI_IS_OBJECT_INFO(info);
+void GIRObject::RegisterMethods(GIObjectInfo *object_info, const char *namespace_, Handle<FunctionTemplate> object_template) {
+    bool is_object_info = GI_IS_OBJECT_INFO(object_info);
     // Register interface methods
     if (is_object_info) {
-        int ifaces = g_object_info_get_n_interfaces(info);
-        for (int i = 0; i < ifaces; i++) {
-            GIInterfaceInfo *iface_info = g_object_info_get_interface(info, i);
+        int n_ifaces = g_object_info_get_n_interfaces(object_info);
+        for (int i = 0; i < n_ifaces; i++) {
+            GIInterfaceInfo *iface_info = g_object_info_get_interface(object_info, i);
             // Register prerequisities
             int n_pre = g_interface_info_get_n_prerequisites(iface_info);
             for (int j = 0; j < n_pre; j++) {
                 GIBaseInfo *pre_info = g_interface_info_get_prerequisite(iface_info, j);
-                GIRObject::RegisterMethods(target, pre_info, namespace_, t);
+                GIRObject::RegisterMethods(pre_info, namespace_, object_template);
                 g_base_info_unref(pre_info);
             }
-            GIRObject::RegisterMethods(target, iface_info, namespace_, t);
+            GIRObject::RegisterMethods(iface_info, namespace_, object_template);
             g_base_info_unref(iface_info);
         }
     }
 
     bool first = true;
     int gcounter = 0;
-    g_base_info_ref(info);
+    g_base_info_ref(object_info);
 
     while (true) {
         if (!first) {
             GIObjectInfo *parent = nullptr;
-            if (GI_IS_OBJECT_INFO(info))
-                parent = g_object_info_get_parent(info);
+            if (GI_IS_OBJECT_INFO(object_info))
+                parent = g_object_info_get_parent(object_info);
             if (!parent) {
-                g_base_info_unref(info);
+                g_base_info_unref(object_info);
                 return;
             }
-            if (g_base_info_equal(parent, info)) {
-                g_base_info_unref(info);
+            if (g_base_info_equal(parent, object_info)) {
+                g_base_info_unref(object_info);
                 return;
             }
-            g_base_info_unref(info);
-            info = parent;
+            g_base_info_unref(object_info);
+            object_info = parent;
         }
 
         int l = 0;
         if (is_object_info) {
-            l = g_object_info_get_n_methods(info);
+            l = g_object_info_get_n_methods(object_info);
         } else {
-            l = g_interface_info_get_n_methods(info);
+            l = g_interface_info_get_n_methods(object_info);
         }
 
         for (int i=0; i<l; i++) {
             GIFunctionInfo *func = nullptr;
             if (is_object_info) {
-                func = g_object_info_get_method(info, i);
+                func = g_object_info_get_method(object_info, i);
             } else {
-                func = g_interface_info_get_method(info, i);
+                func = g_interface_info_get_method(object_info, i);
             }
-            GIRObject::SetMethod(t, *func);
+            GIRObject::SetMethod(object_template, *func);
             g_base_info_unref(func);
         }
         gcounter += l;
