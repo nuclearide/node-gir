@@ -50,25 +50,28 @@ gchar *utf8StringFromValue(v8::Handle<v8::Value> value) {
   return buffer;
 }
 
-static regex underscore_re = regex("_");
-
 /**
  * This function returns a new string, converting the input
  * string from snake case to camel case.
  * e.g. 'set_label' --> 'setLabel'
- * TODO: optimise!
  */
 string toCamelCase(const string input) {
-  vector<string> words = split_string(input, underscore_re);
-  stringstream output;
-  for (auto it = words.begin(); it != words.end(); it++) {
-    auto word = *it;
-    if (word.size() >= 1 && it != words.begin()) {
-      word[0] = toupper(word[0]);
+  string output;
+  bool next_is_capital = false;
+  for (int i = 0; i < input.size(); i++) {
+    auto letter = input[i];
+    if (next_is_capital) {
+      output.append(1, toupper(letter));
+      next_is_capital = false;
+    } else {
+      if (letter == '_' && i != 0) {
+        next_is_capital = true;
+      } else {
+        output.append(1, letter);
+      }
     }
-    output << word;
   }
-  return output.str();
+  return output;
 }
 
 string toSnakeCase(const string input) {
