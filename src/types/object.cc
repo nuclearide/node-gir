@@ -436,6 +436,10 @@ void GIRObject::SetCustomPrototypeMethods(Local<FunctionTemplate> &object_templa
     // Add our 'connect' method to the target.
     // This method is used to connect signals to the underlying gobject.
     Nan::SetPrototypeMethod(object_template, "connect", Connect);
+
+    // Add the 'disconnect' method to the target.
+    // This method is used to disconnect signals connected using 'connect()'
+    Nan::SetPrototypeMethod(object_template, "disconnect", Disconnect);
 }
 
 void GIRObject::PushInstance(GIRObject *obj, Handle<Value> value)
@@ -535,6 +539,17 @@ NAN_METHOD(GIRObject::Connect) {
 
     // return the signal connection ID back to JS.
     info.GetReturnValue().Set(Nan::New((uint32_t)handle_id));
+}
+
+NAN_METHOD(GIRObject::Disconnect) {
+    if (info.Length() != 1 || !info[0]->IsNumber()) {
+        Nan::ThrowTypeError("Invalid argument's, expected 1 number arg!");
+        return;
+    }
+    gulong signal_handler_id = Nan::To<uint32_t>(info[0]).ToChecked();
+    GIRObject *that = Nan::ObjectWrap::Unwrap<GIRObject>(info.This());
+    g_signal_handler_disconnect(that->obj, signal_handler_id);
+    info.GetReturnValue().Set(Nan::Undefined());
 }
 
 NAN_METHOD(GIRObject::GetProperty)

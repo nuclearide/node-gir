@@ -24,5 +24,19 @@ describe('signals', () => {
     window.showAll();
   });
 
-  // TODO: write a test to ensure object.disconnect(connectionId) works
+  test('connect() returns a number', () => {
+    const button = new Gtk.Button();
+    const result = button.connect('clicked', () => undefined);
+    expect(typeof(result)).toEqual('number');
+  });
+
+  test('disconnect() will stop the connected callback from being called', (done) => {
+    const button = new Gtk.Button();
+    const connection = button.connect('clicked', () => {
+      done('the signal callback shouldn\'t have been called!');
+    });
+    button.disconnect(connection);
+    button.clicked();
+    setTimeout(() => done(), 0);
+  });
 });
