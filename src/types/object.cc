@@ -21,7 +21,7 @@ namespace gir {
 void empty_func(void) {};
 
 std::vector<ObjectFunctionTemplate *> GIRObject::templates;
-std::vector<InstanceData> GIRObject::instances;
+std::set<GIRObject *> GIRObject::instances;
 GIPropertyInfo *g_object_info_find_property(GIObjectInfo *info, char *name);
 
 GIRObject::GIRObject(GIObjectInfo *info_, int n_params, GParameter *parameters)
@@ -40,9 +40,7 @@ GIRObject::GIRObject(GIObjectInfo *info_, int n_params, GParameter *parameters)
     }
 }
 
-GIObjectInfo *
-_get_object_info(GType obj_type, GIObjectInfo *info)
-{
+GIObjectInfo * _get_object_info(GType obj_type, GIObjectInfo *info) {
     // The main purpose of this function is to get the best matching info.
     // For example, we have class C which extends B and this extends A.
     // Function x() returns C instances, while it's introspected to return A instances.
@@ -56,78 +54,43 @@ _get_object_info(GType obj_type, GIObjectInfo *info)
     return tmp_info;
 }
 
-Handle<Value> GIRObject::New(GObject *obj_, GIObjectInfo *info_)
-{
-    // find the function template
-    if (obj_ == nullptr || !G_IS_OBJECT(obj_)) {
+Local<Value> GIRObject::New(GObject *existing_gobject, GType gobject_type) {
+    if (existing_gobject == nullptr || !G_IS_OBJECT(existing_gobject)) {
         return Nan::Null();
     }
 
-    Handle<Value> res = GetInstance(obj_);
-    if (res != Nan::Null()) {
-        return res;
-    }
-    Handle<Value> arg = Nan::New<Boolean>(false);
-
-    GIObjectInfo *object_info = _get_object_info(G_OBJECT_TYPE(obj_), info_);
-    if (!object_info) {
-        gchar *msg = g_strdup_printf("ObjectInfo not found for '%s'", G_OBJECT_TYPE_NAME(obj_));
-        Nan::ThrowTypeError(msg);
-    }
-    for (auto it = templates.begin(); it != templates.end(); ++it) {
-        ObjectFunctionTemplate *oft = *it;
-        if (g_base_info_equal(object_info, oft->info)) {
-            res = Nan::New(oft->object_template)->GetFunction()->NewInstance(1, &arg);
-            if (!res.IsEmpty()) {
-                GIRObject *e = ObjectWrap::Unwrap<GIRObject>(res->ToObject());
-                e->info = object_info;
-                e->obj = obj_;
-                e->abstract = false;
-                g_base_info_unref(object_info);
-                return res;
-            }
-            break;
-        }
-    }
-    if (object_info)
-	    g_base_info_unref(object_info);
-
-    return Nan::Null();
-}
-
-Handle<Value> GIRObject::New(GObject *obj_, GType t)
-{
-    if (obj_ == nullptr || !G_IS_OBJECT(obj_)) {
-        return Nan::Null();
+    MaybeLocal<Value> existing_gir_object = GIRObject::GetInstance(existing_gobject);
+    if (!existing_gir_object.IsEmpty()) {
+        return existing_gir_object.ToLocalChecked();
     }
 
-    Handle<Value> res = GetInstance(obj_);
-    if (res != Nan::Null()) {
-        return res;
-    }
-
-    Handle<Value> arg = Nan::New<Boolean>(false);
-    GIBaseInfo *base_info = g_irepository_find_by_gtype(NamespaceLoader::repo, t);
+    GIBaseInfo *base_info = g_irepository_find_by_gtype(NamespaceLoader::repo, gobject_type);
     if (base_info == nullptr) {
-        base_info = g_irepository_find_by_gtype(NamespaceLoader::repo, g_type_parent(t));
+        base_info = g_irepository_find_by_gtype(NamespaceLoader::repo, g_type_parent(gobject_type));
     }
-    /*printf("CREATE NEW OBJECT WITH TYPE '%s' BASE '%s' \n",
-            G_OBJECT_TYPE_NAME(t),
-            g_base_info_get_name(base_info)); */
+    if (!GI_IS_OBJECT_INFO(base_info)) {
+         // TODO:
+         // log error?
+         // raise error?
+         // constructors returning null shouldn't be a thing! constructors should always work!
+        return Nan::Null();
+    }
+
     for (auto it = templates.begin(); it != templates.end(); ++it) {
         ObjectFunctionTemplate *oft = *it;
-        if (t == oft->type) {
-            res = Nan::New(oft->object_template)->GetFunction()->NewInstance(1, &arg);
-            if (!res.IsEmpty()) {
-                GIRObject *e = ObjectWrap::Unwrap<GIRObject>(res->ToObject());
-                e->info = oft->info;
-                e->obj = obj_;
-                e->abstract = false;
-                return res;
+        if (gobject_type == oft->type) {
+            Local<Value> new_instance = Nan::New(oft->object_template)->GetFunction()->NewInstance(0, nullptr);
+            if (!new_instance.IsEmpty()) {
+                GIRObject *gir_wrapper = ObjectWrap::Unwrap<GIRObject>(new_instance->ToObject());
+                gir_wrapper->info = oft->info;
+                gir_wrapper->obj = existing_gobject; // TODO: should we g_object_ref()?
+                gir_wrapper->abstract = false;
+                return new_instance;
             }
             return Nan::Null();
         }
     }
+
     return Nan::Null();
 }
 
@@ -136,8 +99,9 @@ NAN_METHOD(GIRObject::New)
     if (info.Length() == 1 && info[0]->IsBoolean() && !info[0]->IsTrue()) {
         GIRObject *obj = new GIRObject();
         obj->Wrap(info.This());
-        PushInstance(obj, info.This());
+        GIRObject::instances.insert(obj);
         info.GetReturnValue().Set(info.This());
+        return;
     }
 
     String::Utf8Value className(info.Callee()->GetName());
@@ -160,15 +124,17 @@ NAN_METHOD(GIRObject::New)
     int length = 0;
     GParameter *params = nullptr;
     Local<Value> v = ToParams(info[0], &params, &length, objinfo);
-    if (v != Nan::Null())
+    if (v != Nan::Null()) {
         info.GetReturnValue().Set(v);
+    }
 
     GIRObject *obj = new GIRObject(objinfo, length, params);
     DeleteParams(params, length);
 
     obj->Wrap(info.This());
-    PushInstance(obj, info.This());
+    GIRObject::instances.insert(obj);
     info.GetReturnValue().Set(info.This());
+    return;
 }
 
 GIRObject::~GIRObject()
@@ -442,26 +408,13 @@ void GIRObject::SetCustomPrototypeMethods(Local<FunctionTemplate> &object_templa
     Nan::SetPrototypeMethod(object_template, "disconnect", Disconnect);
 }
 
-void GIRObject::PushInstance(GIRObject *obj, Handle<Value> value)
-{
-    Local<Object> p_value = value->ToObject();
-    obj->MakeWeak();
-
-    InstanceData data;
-    data.obj = obj;
-    data.instance = p_value;
-    instances.push_back(data);
-}
-
-Handle<Value> GIRObject::GetInstance(GObject *obj)
-{
-    std::vector<InstanceData>::iterator it;
-    for (it = instances.begin(); it != instances.end(); it++) {
-        if (it->obj && it->obj->obj && it->obj->obj == obj) {
-            return it->instance;
+MaybeLocal<Value> GIRObject::GetInstance(GObject *obj) {
+    for (GIRObject *gir_object : GIRObject::instances) {
+        if (gir_object->obj == obj) {
+            return MaybeLocal<Value>(gir_object->handle());
         }
     }
-    return Nan::Null();
+    return MaybeLocal<Value>();
 }
 
 NAN_METHOD(GIRObject::CallUnknownMethod)

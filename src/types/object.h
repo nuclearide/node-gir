@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <set>
 #include <v8.h>
 #include <nan.h>
 #include <glib.h>
@@ -43,7 +44,7 @@ class GIRObject : public Nan::ObjectWrap {
     bool abstract;
     GIBaseInfo *info;
 
-    static std::vector<InstanceData> instances;
+    static std::set<GIRObject *> instances;
     static std::vector<ObjectFunctionTemplate *> templates;
 
     static Local<Value> New(GObject *obj, GIObjectInfo *info);
@@ -68,8 +69,7 @@ class GIRObject : public Nan::ObjectWrap {
     static NAN_METHOD(Connect);
     static NAN_METHOD(Disconnect);
 
-    static void PushInstance(GIRObject *obj, Local<Value>);
-    static Local<Value> GetInstance(GObject *obj);
+    static MaybeLocal<Value> GetInstance(GObject *obj);
     static ObjectFunctionTemplate* CreateObjectTemplate(GIObjectInfo *object_info);
     static ObjectFunctionTemplate* FindOrCreateTemplateFromObjectInfo(GIObjectInfo *object_info);
 
