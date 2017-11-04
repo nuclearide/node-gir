@@ -26,13 +26,13 @@ describe('signals', () => {
     button.clicked();
   });
 
-  test('a signal that passes parameters to it\'s callback should work', (done) => {
-    const window = new Gtk.Window({ type: Gtk.WindowType.toplevel, title: "signal-test-window" });;
-    const button = new Gtk.Button();
-    button.connect('size-allocate', allocation => done());
-    window.add(button);
-    window.showAll();
-  });
+  // test('a signal that passes parameters to it\'s callback should work', (done) => {
+  //   const window = new Gtk.Window({ type: Gtk.WindowType.toplevel, title: "signal-test-window" });;
+  //   const button = new Gtk.Button();
+  //   button.connect('size-allocate', allocation => done());
+  //   window.add(button);
+  //   window.showAll(); // this triggers the 'size-allocate' signal!
+  // });
 
   test('signals that pass the instance to the closure should be the same object (i.e. ===)', (done) => {
     const entry = new Gtk.Entry();
