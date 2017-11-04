@@ -195,7 +195,7 @@ Handle<Value> Args::FromGTypeArray(GIArgument *arg, GITypeInfo *type, int array_
 
     int i = 0;
     v8::Local<v8::Array> arr;
-    GIBaseInfo *interface_info = nullptr;
+    GIBaseInfo *interface_info;
 
     switch(param_tag) {
         case GI_TYPE_TAG_UINT8:
@@ -215,16 +215,16 @@ Handle<Value> Args::FromGTypeArray(GIArgument *arg, GITypeInfo *type, int array_
             return arr;
 
         case GI_TYPE_TAG_INTERFACE:
-            if (arg->v_pointer == nullptr)
+            if (arg->v_pointer == nullptr) {
                 return Nan::New<Array>();
+            }
             arr = Nan::New<Array>(array_length);
             interface_info = g_type_info_get_interface(param_info);
-
             for (i = 0; i < array_length; i++) {
                 GObject *o = (GObject*)((gpointer*)arg->v_pointer)[i];
-                arr->Set(i, GIRObject::New(o, interface_info));
+                arr->Set(i, GIRObject::New(o, g_registered_type_info_get_g_type(interface_info)));
             }
-            //g_base_info_unref(interface_info); // FIXME
+            g_base_info_unref(interface_info);
             return arr;
 
         default:
@@ -234,6 +234,8 @@ Handle<Value> Args::FromGTypeArray(GIArgument *arg, GITypeInfo *type, int array_
     }
 }
 
+// TODO: refactor this whole file (especially this function)
+// can we reuse code from GIRValue?
 Local<Value> Args::FromGType(GIArgument *arg, GITypeInfo *type, int array_length) {
     GITypeTag tag = g_type_info_get_tag(type);
 
@@ -242,8 +244,10 @@ Local<Value> Args::FromGType(GIArgument *arg, GITypeInfo *type, int array_length
         g_assert(interface_info != nullptr);
         GIInfoType interface_type = g_base_info_get_type(interface_info);
 
-        if(interface_type == GI_INFO_TYPE_OBJECT) {
-            return GIRObject::New(G_OBJECT(arg->v_pointer), interface_info);
+        if (interface_type == GI_INFO_TYPE_OBJECT) {
+            Local<Value> new_instance = GIRObject::New(G_OBJECT(arg->v_pointer), g_registered_type_info_get_g_type(interface_info));
+            g_base_info_unref(interface_info);
+            return new_instance;
         }
     }
 

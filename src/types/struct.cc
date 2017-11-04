@@ -274,23 +274,27 @@ Handle<Value> GIRStruct::GetStructure(gpointer c_structure)
     return Nan::Null();
 }
 
-NAN_METHOD(GIRStruct::CallMethod)
-{
-    String::Utf8Value fname(info.Callee()->GetName());
+NAN_METHOD(GIRStruct::CallMethod) {
+    String::Utf8Value js_func_name(info.Callee()->GetName());
+    string native_func_name = Util::toSnakeCase(string(*js_func_name));
     GIRStruct *that = Nan::ObjectWrap::Unwrap<GIRStruct>(info.This()->ToObject());
     if (!GI_IS_STRUCT_INFO(that->info)) {
-	   Nan::ThrowError("Missed structure info to call method");
+       Nan::ThrowError("Missed structure info to call method");
+       return;
     }
-    GIFunctionInfo *func = g_struct_info_find_method(that->info, *fname);
-    debug_printf("Call Method: '%s' [%p] \n", *fname, func);
+    GIFunctionInfo *func = g_struct_info_find_method(that->info, native_func_name.c_str());
+    debug_printf("Call Method: '%s' [%p] \n", native_func_name.c_str(), func);
     if (func) {
         debug_printf("\t Call symbol: '%s' \n", g_function_info_get_symbol(func));
         info.GetReturnValue().Set(Func::Call((GObject *)that->c_structure, func, info, TRUE));
+        return;
     }
     else {
         Nan::ThrowError("no such method");
+        return;
     }
     info.GetReturnValue().SetUndefined();
+    return;
 }
 
 Handle<Object> GIRStruct::PropertyList(GIObjectInfo *info)
@@ -363,7 +367,8 @@ void GIRStruct::RegisterMethods(GIStructInfo *info, const char *namespace_, Hand
     int number_of_methods = g_struct_info_get_n_methods(info);
     for (int i = 0; i < number_of_methods; i++) {
         GIFunctionInfo *func = g_struct_info_get_method(info, i);
-        const char *func_name = g_base_info_get_name(func);
+        const char *native_func_name = g_base_info_get_name(func);
+        string js_func_name = Util::toCamelCase(string(native_func_name));
         GIFunctionInfoFlags func_flag = g_function_info_get_flags(func);
 
         if ((func_flag & GI_FUNCTION_IS_CONSTRUCTOR)) {
@@ -375,9 +380,9 @@ void GIRStruct::RegisterMethods(GIStructInfo *info, const char *namespace_, Hand
             Nan::SetPrivate(callback_func->GetFunction(), Nan::New("GIInfo").ToLocalChecked(), info_ptr);
 
             // Set v8 function
-            object_template->Set(Nan::New(func_name).ToLocalChecked(), callback_func);
+            object_template->Set(Nan::New(js_func_name.c_str()).ToLocalChecked(), callback_func);
         } else {
-            Nan::SetPrototypeMethod(object_template, func_name, CallMethod);
+            Nan::SetPrototypeMethod(object_template, js_func_name.c_str(), GIRStruct::CallMethod);
         }
         g_base_info_unref(func);
     }

@@ -47,7 +47,6 @@ class GIRObject : public Nan::ObjectWrap {
     static std::set<GIRObject *> instances;
     static std::vector<ObjectFunctionTemplate *> templates;
 
-    static Local<Value> New(GObject *obj, GIObjectInfo *info);
     static Local<Value> New(GObject *obj, GType t);
     static NAN_METHOD(New);
 
