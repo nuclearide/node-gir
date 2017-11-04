@@ -42,7 +42,11 @@ Handle<Value> GIRStruct::New(gpointer c_structure, GIStructInfo *info)
     }
 
     if (res == Nan::Null()) {
-        Nan::ThrowTypeError("unknown gobject!");
+        // TODO: this will be fixed when we refactor GIRStruct.
+        // ideally it'll share many things with GIRObject (because in JS land they are the same)
+        // but I haven't yet figured how how to refactor GIRObject/GIRStruct to share code/logic.
+        Nan::ThrowTypeError("GIRStruct does not currently support creating new instances from existing GObject instances.");
+        return Nan::Null();
     }
 
     if (!res.IsEmpty()) {
