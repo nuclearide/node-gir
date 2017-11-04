@@ -334,7 +334,7 @@ ObjectFunctionTemplate* GIRObject::CreateObjectTemplate(GIObjectInfo *object_inf
         g_base_info_unref(constant);
     }
 
-    RegisterMethods(oft->info, oft->namespace_, object_template);
+    GIRObject::RegisterMethods(oft->info, oft->namespace_, object_template);
     GIRObject::SetCustomFields(object_template, object_info);
     GIRObject::SetCustomPrototypeMethods(object_template);
     GIRObject::ExtendParent(object_template, oft->info);
@@ -929,14 +929,13 @@ void GIRObject::SetMethod(Local<FunctionTemplate> &target, GIFunctionInfo *funct
     // we want to get a c_str() from this output std::string of toCamelCase
     // we need to keep a reference to the std::string so the underlying c_str()
     // is safe to use! That's why we have 2 line here not 1.
-    std::string js_name_str_copy = Util::toCamelCase(std::string(native_name));
-    const char *js_name = js_name_str_copy.c_str();
+    std::string js_name = Util::toCamelCase(std::string(native_name));
 
     GIFunctionInfoFlags flags = g_function_info_get_flags(function_info);
     if (flags & GI_FUNCTION_IS_METHOD) {
         // if the function is a method, then we want to set it on the prototype
         // of the target, as a GI_FUNCTION_IS_METHOD is an instance method.
-        Nan::SetPrototypeMethod(target, js_name, CallUnknownMethod);
+        Nan::SetPrototypeMethod(target, js_name.c_str(), GIRObject::CallUnknownMethod);
     } else {
         // else if it's not a method, then we want to set it as a static function
         // on the target itself (not the prototype)
@@ -948,7 +947,7 @@ void GIRObject::SetMethod(Local<FunctionTemplate> &target, GIFunctionInfo *funct
         Nan::SetPrivate(static_function->GetFunction(), Nan::New("GIInfo").ToLocalChecked(), function_info_extern);
 
         // set the function on the target.
-        target->Set(Nan::New(js_name).ToLocalChecked(), static_function);
+        target->Set(Nan::New(js_name.c_str()).ToLocalChecked(), static_function);
     }
 }
 

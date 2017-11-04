@@ -24,6 +24,7 @@
   "scripts": {
     "build": "node-gyp configure && node-gyp build",
     "build:debug": "node-gyp configure --debug && node-gyp build --debug",
+    "clean": "rm -rf ./build || true",
     "test": "jest"
   },
   "directories": {
