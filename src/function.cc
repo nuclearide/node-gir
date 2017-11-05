@@ -109,6 +109,9 @@ Local<FunctionTemplate> Func::CreateFunction(GIFunctionInfo *function_info) {
     return function_template;
 }
 
+// FIXME: this needs to be refactored to support anyone creating a function
+// that executes the native function specified by GIFunctionInfo with a given GObject
+// not just GIRObject's as is the case currently with Func::InvokeMethod!
 Local<FunctionTemplate> Func::CreateMethod(GIFunctionInfo *function_info) {
     Local<External> function_info_extern = Nan::New<External>((void *)g_base_info_ref(function_info));
     Local<FunctionTemplate> function_template = Nan::New<FunctionTemplate>(Func::InvokeMethod, function_info_extern);

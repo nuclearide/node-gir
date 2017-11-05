@@ -60,27 +60,14 @@ Handle<Value> GIRStruct::New(gpointer c_structure, GIStructInfo *info)
     return res;
 }
 
-NAN_METHOD(GIRStruct::New)
-{
-    String::Utf8Value className(info.Callee()->GetName());
-    debug_printf ("Struct constructor '%s' \n", *className);
-    std::vector<StructFunctionTemplate>::iterator it;
+NAN_METHOD(GIRStruct::New) {
+    Local<External> struct_info_extern = Local<External>::Cast(info.Data());
+    GIStructInfo *struct_info = (GIStructInfo *)struct_info_extern->Value();
 
-    GIObjectInfo *gobjinfo = nullptr;
-    for (it = templates.begin(); it != templates.end(); ++it) {
-        if (strcmp(it->type_name, *className) == 0) {
-            gobjinfo = it->info;
-            break;
-        }
-    }
-
-    if (gobjinfo == nullptr || !GI_IS_STRUCT_INFO(gobjinfo)) {
-        Nan::ThrowError("Missed introspection structure info");
-    }
-
-    GIBaseInfo *func  = (GIBaseInfo*) g_struct_info_find_method(gobjinfo, "new");
+    GIFunctionInfo *func  = g_struct_info_find_method(struct_info, "new");
     if (func == nullptr) {
-        Nan::ThrowError("Missed introspection structure constructor info");
+        Nan::ThrowError("GIRStruct was unable to be constructed because there is no 'new' function!");
+        return;
     }
 
     GIArgument retval;
@@ -91,14 +78,14 @@ NAN_METHOD(GIRStruct::New)
     if (returned_type_info != nullptr)
         g_base_info_unref(returned_type_info);
 
-    GIRStruct *obj = new GIRStruct(gobjinfo);
+    GIRStruct *obj = new GIRStruct(struct_info);
 
     /* Set underlying C structure */
     obj->c_structure = (gpointer) retval.v_pointer;
 
     obj->Wrap(info.This());
     PushInstance(obj, info.This());
-    obj->info = gobjinfo;
+    obj->info = struct_info;
 
     info.GetReturnValue().Set(info.This());
 }
@@ -214,7 +201,8 @@ Local<Value> GIRStruct::Prepare(GIStructInfo *info) {
         return Nan::Null();
     }
 
-    Local<FunctionTemplate> object_template = Nan::New<FunctionTemplate>(GIRStruct::New);
+    Local<External> struct_info_extern = Nan::New<External>((void *)g_base_info_ref(info));
+    Local<FunctionTemplate> object_template = Nan::New<FunctionTemplate>(GIRStruct::New, struct_info_extern);
     object_template->SetClassName(Nan::New(name).ToLocalChecked());
 
     StructFunctionTemplate oft;
@@ -275,26 +263,11 @@ Handle<Value> GIRStruct::GetStructure(gpointer c_structure)
 }
 
 NAN_METHOD(GIRStruct::CallMethod) {
-    String::Utf8Value js_func_name(info.Callee()->GetName());
-    string native_func_name = Util::toSnakeCase(string(*js_func_name));
+    Local<External> function_info_extern = Local<External>::Cast(info.Data());
+    GIFunctionInfo *function_info = (GIFunctionInfo *)function_info_extern->Value();
     GIRStruct *that = Nan::ObjectWrap::Unwrap<GIRStruct>(info.This()->ToObject());
-    if (!GI_IS_STRUCT_INFO(that->info)) {
-       Nan::ThrowError("Missed structure info to call method");
-       return;
-    }
-    GIFunctionInfo *func = g_struct_info_find_method(that->info, native_func_name.c_str());
-    debug_printf("Call Method: '%s' [%p] \n", native_func_name.c_str(), func);
-    if (func) {
-        debug_printf("\t Call symbol: '%s' \n", g_function_info_get_symbol(func));
-        info.GetReturnValue().Set(Func::Call((GObject *)that->c_structure, func, info, TRUE));
-        return;
-    }
-    else {
-        Nan::ThrowError("no such method");
-        return;
-    }
-    info.GetReturnValue().SetUndefined();
-    return;
+    Local<Value> result = Func::Call((GObject *)that->c_structure, function_info, info, TRUE);
+    info.GetReturnValue().Set(result);
 }
 
 Handle<Object> GIRStruct::PropertyList(GIObjectInfo *info)
@@ -369,13 +342,18 @@ void GIRStruct::RegisterMethods(GIStructInfo *info, const char *namespace_, Hand
         GIFunctionInfo *func = g_struct_info_get_method(info, i);
         const char *native_func_name = g_base_info_get_name(func);
         string js_func_name = Util::toCamelCase(string(native_func_name));
+        Local<String> function_name = Nan::New(js_func_name.c_str()).ToLocalChecked();
         GIFunctionInfoFlags func_flag = g_function_info_get_flags(func);
 
         if ((func_flag & GI_FUNCTION_IS_CONSTRUCTOR)) {
             Local<FunctionTemplate> callback_func = Func::CreateFunction(func);
-            object_template->Set(Nan::New(js_func_name.c_str()).ToLocalChecked(), callback_func);
+            object_template->Set(function_name, callback_func);
         } else {
-            Nan::SetPrototypeMethod(object_template, js_func_name.c_str(), GIRStruct::CallMethod);
+            // TODO: refactor Func::CreateMethod() to support more than GIRObject so we can reuse that
+            // logic in here and keep is DRY!
+            Local<External> function_info_extern = Nan::New<External>((void *)g_base_info_ref(func));
+            Local<FunctionTemplate> method_template = Nan::New<FunctionTemplate>(GIRStruct::CallMethod, function_info_extern);
+            object_template->PrototypeTemplate()->Set(function_name, method_template);
         }
         g_base_info_unref(func);
     }
