@@ -249,9 +249,11 @@ NAN_METHOD(Func::CallStaticMethod)
 
     if (func) {
         info.GetReturnValue().Set(Func::Call(nullptr, func, info, TRUE));
+        return;
     }
     else {
         Nan::ThrowError("no such method");
+        return;
     }
 
     info.GetReturnValue().Set(Nan::Undefined());
