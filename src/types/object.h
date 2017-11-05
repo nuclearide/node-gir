@@ -58,8 +58,6 @@ class GIRObject : public Nan::ObjectWrap {
 
     static void Initialize(Local<Object> target, char *namespace_);
 
-    static NAN_METHOD(CallMethod);
-    static NAN_METHOD(CallUnknownMethod);
     static NAN_METHOD(GetProperty);
     static NAN_METHOD(SetProperty);
     static NAN_METHOD(GetInterface);

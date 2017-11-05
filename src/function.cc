@@ -4,6 +4,8 @@
 #include <nan.h>
 #include <vector>
 
+#include "types/object.h"
+
 using namespace v8;
 
 namespace gir {
@@ -101,6 +103,39 @@ char * checkNumberOfArguments(GIFunctionInfo *info, const Nan::FunctionCallbackI
     return nullptr;
 }
 
+Local<FunctionTemplate> Func::CreateFunction(GIFunctionInfo *function_info) {
+    Local<External> function_info_extern = Nan::New<External>((void *)g_base_info_ref(function_info));
+    Local<FunctionTemplate> function_template = Nan::New<FunctionTemplate>(Func::InvokeFunction, function_info_extern);
+    return function_template;
+}
+
+Local<FunctionTemplate> Func::CreateMethod(GIFunctionInfo *function_info) {
+    Local<External> function_info_extern = Nan::New<External>((void *)g_base_info_ref(function_info));
+    Local<FunctionTemplate> function_template = Nan::New<FunctionTemplate>(Func::InvokeMethod, function_info_extern);
+    return function_template;
+}
+
+NAN_METHOD(Func::InvokeFunction) {
+    Local<External> function_info_extern = Local<External>::Cast(info.Data());
+    GIFunctionInfo *function_info = (GIFunctionInfo *)function_info_extern->Value();
+    Local<Value> js_func_result = Func::Call(nullptr, function_info, info, TRUE);
+    info.GetReturnValue().Set(js_func_result);
+}
+
+NAN_METHOD(Func::InvokeMethod) {
+    if (!info.This()->IsObject()) {
+        Nan::ThrowTypeError("the value of 'this' is not an object");
+        return;
+    }
+
+    GIRObject *that = Nan::ObjectWrap::Unwrap<GIRObject>(info.This()->ToObject());
+    GObject *native_object = that->obj;
+    Local<External> function_info_extern = Local<External>::Cast(info.Data());
+    GIFunctionInfo *function_info = (GIFunctionInfo *)function_info_extern->Value();
+
+    Local<Value> js_func_result = Func::Call(native_object, function_info, info, TRUE);
+    info.GetReturnValue().Set(js_func_result);
+}
 
 v8::Handle<v8::Value> Func::CallAndGetPtr(GObject *obj, GIFunctionInfo *info, const Nan::FunctionCallbackInfo<v8::Value> &args, bool ignore_function_name, GIArgument *retval, GITypeInfo **returned_type_info, gint *returned_array_length) {
     if(g_function_info_get_flags(info) == GI_FUNCTION_IS_CONSTRUCTOR) {
@@ -223,7 +258,7 @@ Local<Value> Func::Call(GObject *obj, GIFunctionInfo *info, const Nan::FunctionC
     GITypeInfo *returned_type_info;
     gint returned_array_length;
 
-    CallAndGetPtr(obj, info, args, ignore_function_name, &retval, &returned_type_info, &returned_array_length);
+    Func::CallAndGetPtr(obj, info, args, ignore_function_name, &retval, &returned_type_info, &returned_array_length);
     Local<Value> return_value = Args::FromGType(&retval, returned_type_info, returned_array_length);
 
     if (returned_type_info != nullptr)
@@ -232,31 +267,6 @@ Local<Value> Func::Call(GObject *obj, GIFunctionInfo *info, const Nan::FunctionC
     /* TODO, free GIArgument ? */
 
     return return_value;
-}
-
-NAN_METHOD(Func::CallStaticMethod)
-{
-    v8::Handle<v8::External> info_ptr = v8::Handle<v8::External>::Cast(Nan::GetPrivate(info.Callee(), Nan::New("GIInfo").ToLocalChecked()).ToLocalChecked());
-
-    GIBaseInfo *func  = (GIBaseInfo*) info_ptr->Value();
-    GIBaseInfo *container = g_base_info_get_container(func);
-
-    debug_printf("Call static method '%s.%s.%s' ('%s') \n",
-            g_base_info_get_namespace(func),
-            g_base_info_get_name(container),
-            g_base_info_get_name(func),
-            g_function_info_get_symbol(func));
-
-    if (func) {
-        info.GetReturnValue().Set(Func::Call(nullptr, func, info, TRUE));
-        return;
-    }
-    else {
-        Nan::ThrowError("no such method");
-        return;
-    }
-
-    info.GetReturnValue().Set(Nan::Undefined());
 }
 
 }

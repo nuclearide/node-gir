@@ -397,7 +397,6 @@ void GIRObject::SetCustomPrototypeMethods(Local<FunctionTemplate> &object_templa
     Nan::SetPrototypeMethod(object_template, "__set_property__", GIRObject::SetProperty);
     Nan::SetPrototypeMethod(object_template, "__get_interface__", GIRObject::GetInterface);
     Nan::SetPrototypeMethod(object_template, "__get_field__", GIRObject::GetField);
-    Nan::SetPrototypeMethod(object_template, "__call_v_func__", GIRObject::CallMethod);
 
     // Add our 'connect' method to the target.
     // This method is used to connect signals to the underlying gobject.
@@ -415,43 +414,6 @@ MaybeLocal<Value> GIRObject::GetInstance(GObject *obj) {
         }
     }
     return MaybeLocal<Value>();
-}
-
-NAN_METHOD(GIRObject::CallUnknownMethod)
-{
-    String::Utf8Value fname(info.Callee()->GetName());
-    debug_printf("Call method '%s' \n", *fname);
-    GIRObject *that = Nan::ObjectWrap::Unwrap<GIRObject>(info.This()->ToObject());
-    GIFunctionInfo *func = that->FindMethod(that->info, *fname);
-    debug_printf("Call Method: '%s' [%p] \n", *fname, func);
-
-    if (func) {
-        debug_printf("\t Call symbol: '%s' \n", g_function_info_get_symbol(func));
-        info.GetReturnValue().Set(Func::Call(that->obj, func, info, TRUE));
-    }
-    else {
-        Nan::ThrowError("no such method");
-    }
-}
-
-NAN_METHOD(GIRObject::CallMethod)
-{
-    if (info.Length() < 1 || !info[0]->IsString()) {
-        Nan::ThrowError("Invalid argument's number or type");
-    }
-
-    String::Utf8Value fname(info[0]);
-    GIRObject *that = Nan::ObjectWrap::Unwrap<GIRObject>(info.This()->ToObject());
-    GIFunctionInfo *func = that->FindMethod(that->info, *fname);
-
-    if (func) {
-        info.GetReturnValue().Set(Func::Call(that->obj, func, info, FALSE));
-    }
-    else {
-        Nan::ThrowError("no such method");
-    }
-
-    info.GetReturnValue().SetUndefined();
 }
 
 /**
@@ -620,36 +582,6 @@ NAN_METHOD(GIRObject::CallVFunc)
     }
 
     info.GetReturnValue().SetUndefined();
-}
-
-GIFunctionInfo *GIRObject::FindMethod(GIObjectInfo *info, char *js_name)
-{
-    // given the JS function/method names are camelCased, we should
-    // convert to snake case first!
-    string snake_case_name = Util::toSnakeCase(string(js_name));
-    const char* native_name = snake_case_name.c_str();
-    GIFunctionInfo *func = g_object_info_find_method(info, native_name);
-
-    // Find interface method
-    if (!func) {
-        int ifaces = g_object_info_get_n_interfaces(info);
-        for (int i = 0; i < ifaces; i++) {
-            GIInterfaceInfo *iface_info = g_object_info_get_interface(info, i);
-            func = g_interface_info_find_method(iface_info, native_name);
-            if (func) {
-                g_base_info_unref(iface_info);
-                return func;
-            }
-            g_base_info_unref(iface_info);
-        }
-    }
-
-    if (!func) {
-        GIObjectInfo *parent = g_object_info_get_parent(info);
-        func = FindMethod(parent, js_name);
-        g_base_info_unref(parent);
-    }
-    return func;
 }
 
 GIPropertyInfo *g_object_info_find_property(GIObjectInfo *info, char *name)
@@ -925,29 +857,16 @@ void GIRObject::RegisterMethods(GIObjectInfo *object_info, const char *namespace
  */
 void GIRObject::SetMethod(Local<FunctionTemplate> &target, GIFunctionInfo *function_info) {
     const char *native_name = g_base_info_get_name(function_info);
-
-    // we want to get a c_str() from this output std::string of toCamelCase
-    // we need to keep a reference to the std::string so the underlying c_str()
-    // is safe to use! That's why we have 2 line here not 1.
-    std::string js_name = Util::toCamelCase(std::string(native_name));
-
-    GIFunctionInfoFlags flags = g_function_info_get_flags(function_info);
-    if (flags & GI_FUNCTION_IS_METHOD) {
+    string js_name = Util::toCamelCase(std::string(native_name));
+    Local<String> js_function_name = Nan::New(js_name.c_str()).ToLocalChecked();
+    if (g_function_info_get_flags(function_info) & GI_FUNCTION_IS_METHOD) {
         // if the function is a method, then we want to set it on the prototype
         // of the target, as a GI_FUNCTION_IS_METHOD is an instance method.
-        Nan::SetPrototypeMethod(target, js_name.c_str(), GIRObject::CallUnknownMethod);
+        target->PrototypeTemplate()->Set(js_function_name, Func::CreateMethod(function_info));
     } else {
         // else if it's not a method, then we want to set it as a static function
         // on the target itself (not the prototype)
-        Local<FunctionTemplate> static_function = Nan::New<FunctionTemplate>(Func::CallStaticMethod);
-
-        // set a private value on the function. this is used to lookup the GIFunctionInfo
-        // inside the Func::CallStaticMethod function. TODO: find an alternative to this design!
-        Local<External> function_info_extern = Nan::New<External>((void *)g_base_info_ref(function_info));
-        Nan::SetPrivate(static_function->GetFunction(), Nan::New("GIInfo").ToLocalChecked(), function_info_extern);
-
-        // set the function on the target.
-        target->Set(Nan::New(js_name.c_str()).ToLocalChecked(), static_function);
+        target->Set(js_function_name, Func::CreateFunction(function_info));
     }
 }
 
