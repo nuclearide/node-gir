@@ -94,9 +94,11 @@ Local<Value> GIRObject::New(GObject *existing_gobject, GType gobject_type) {
     return Nan::Null();
 }
 
-NAN_METHOD(GIRObject::New)
-{
+NAN_METHOD(GIRObject::New) {
     if (info.Length() == 1 && info[0]->IsBoolean() && !info[0]->IsTrue()) {
+        // TODO: this bit of code looks like a complete HACK and i think
+        // it should be removed! passing 'true' to the constructor randomly
+        // does this logic? why?
         GIRObject *obj = new GIRObject();
         obj->Wrap(info.This());
         GIRObject::instances.insert(obj);
@@ -104,31 +106,22 @@ NAN_METHOD(GIRObject::New)
         return;
     }
 
-    String::Utf8Value className(info.Callee()->GetName());
+    Local<External> object_info_extern = Local<External>::Cast(info.Data());
+    GIObjectInfo *object_info = (GIObjectInfo *)object_info_extern->Value();
 
-    debug_printf ("CTR '%s' \n", *className);
-
-    GIObjectInfo *objinfo = nullptr;
-    for (auto it = templates.begin(); it != templates.end(); ++it) {
-        ObjectFunctionTemplate *oft = *it;
-        if (strcmp(oft->type_name, *className) == 0) {
-            objinfo = oft->info;
-            break;
-        }
-    }
-
-    if (objinfo == nullptr) {
-        Nan::ThrowError("no such class. Callee()->GetName() returned wrong classname");
+    if (object_info == nullptr) {
+        Nan::ThrowError("no type information available for object constructor! this is likely a bug with node-gir!");
+        return;
     }
 
     int length = 0;
     GParameter *params = nullptr;
-    Local<Value> v = ToParams(info[0], &params, &length, objinfo);
+    Local<Value> v = GIRObject::ToParams(info[0], &params, &length, object_info);
     if (v != Nan::Null()) {
-        info.GetReturnValue().Set(v);
+        info.GetReturnValue().Set(v); // TODO: setting return value without 'return;'. Is this a bug waiting to happen?
     }
 
-    GIRObject *obj = new GIRObject(objinfo, length, params);
+    GIRObject *obj = new GIRObject(object_info, length, params);
     DeleteParams(params, length);
 
     obj->Wrap(info.This());
@@ -297,7 +290,8 @@ NAN_PROPERTY_SETTER(PropertySetHandler)
 }
 
 ObjectFunctionTemplate* GIRObject::CreateObjectTemplate(GIObjectInfo *object_info) {
-    Local<FunctionTemplate> object_template = Nan::New<FunctionTemplate>(GIRObject::New);
+    Local<External> object_info_extern = Nan::New<External>((void *)g_base_info_ref(object_info));
+    Local<FunctionTemplate> object_template = Nan::New<FunctionTemplate>(GIRObject::New, object_info_extern);
 
     ObjectFunctionTemplate *oft = new ObjectFunctionTemplate(); // TODO: where do we deallocate? When the namespace object (the node module) is collected?
     g_base_info_ref(object_info); // ref the info because we're storing an reference on 'oft'

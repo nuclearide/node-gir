@@ -372,14 +372,7 @@ void GIRStruct::RegisterMethods(GIStructInfo *info, const char *namespace_, Hand
         GIFunctionInfoFlags func_flag = g_function_info_get_flags(func);
 
         if ((func_flag & GI_FUNCTION_IS_CONSTRUCTOR)) {
-            // Create new function
-            Local<FunctionTemplate> callback_func = Nan::New<v8::FunctionTemplate>(Func::CallStaticMethod);
-
-            // Create external to hold GIBaseInfo and set it
-            v8::Handle<v8::External> info_ptr = Nan::New<v8::External>((void*)g_base_info_ref(func));
-            Nan::SetPrivate(callback_func->GetFunction(), Nan::New("GIInfo").ToLocalChecked(), info_ptr);
-
-            // Set v8 function
+            Local<FunctionTemplate> callback_func = Func::CreateFunction(func);
             object_template->Set(Nan::New(js_func_name.c_str()).ToLocalChecked(), callback_func);
         } else {
             Nan::SetPrototypeMethod(object_template, js_func_name.c_str(), GIRStruct::CallMethod);

@@ -19,7 +19,6 @@ class Func {
 
     static NAN_METHOD(InvokeFunction);
     static NAN_METHOD(InvokeMethod);
-    static NAN_METHOD(CallStaticMethod);
 };
 
 }
