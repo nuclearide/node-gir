@@ -51,7 +51,7 @@ static void gir_signal_closure_marshal(GClosure *closure,
   Nan::MaybeLocal<Value> maybe_result = Nan::Call(local_callback, Nan::GetCurrentContext()->Global(), n_param_values, callback_argv.data());
 
   // handle the result of the JS callback call
-  if (maybe_result.IsEmpty() || maybe_result.ToLocalChecked()->IsNullOrUndefined()) {
+  if (maybe_result.IsEmpty() || maybe_result.ToLocalChecked()->IsNull() || maybe_result.ToLocalChecked()->IsUndefined()) {
     // we don't have a return value
     return_value = NULL; // set the signal return value to NULL
     return;
@@ -62,8 +62,9 @@ static void gir_signal_closure_marshal(GClosure *closure,
     // attempt to convert the Local<Value> to a the return_value's GValue type.
     // if the conversion fails we'll throw an exception to JS land.
     // if the conversion is successful, then the return_value will be set!
-    if (!GIRValue::ToGValue(result, G_IS_VALUE(return_value), return_value)) {
+    if (!GIRValue::ToGValue(result, G_VALUE_TYPE(return_value), return_value)) {
       Nan::ThrowError("cannot convert return value of callback to a GI type");
+      return;
     }
     return;
   }
