@@ -36,7 +36,8 @@ Handle<Value> GIRStruct::New(gpointer c_structure, GIStructInfo *info)
 
     for (it = templates.begin(); it != templates.end(); ++it) {
         if (g_base_info_equal(info, it->info)) {
-            res = Nan::New(it->function)->GetFunction()->NewInstance();
+            Local<Function> instance_constructor = Nan::GetFunction(Nan::New(it->function)).ToLocalChecked();
+            res = Nan::NewInstance(instance_constructor).ToLocalChecked();
             break;
         }
     }
