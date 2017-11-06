@@ -408,7 +408,7 @@ NAN_METHOD(GIRObject::Disconnect) {
         Nan::ThrowTypeError("Invalid argument's, expected 1 number arg!");
         return;
     }
-    gulong signal_handler_id = Nan::To<uint32_t>(info[0]).ToChecked();
+    gulong signal_handler_id = Nan::To<uint32_t>(info[0]).FromJust();
     GIRObject *that = Nan::ObjectWrap::Unwrap<GIRObject>(info.This());
     g_signal_handler_disconnect(that->obj, signal_handler_id);
     info.GetReturnValue().Set(Nan::Undefined());

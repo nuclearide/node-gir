@@ -189,6 +189,7 @@ v8::Handle<v8::Value> Func::CallAndGetPtr(GObject *obj, GIFunctionInfo *info, co
                                                  in_c, instance_desc, g_type_tag_to_string(g_type_info_get_tag(arg_type_info)));
                 g_free(instance_desc);
                 Nan::ThrowError(exc_msg);
+                return Nan::Null();
             }
             in_c++;
         }
@@ -199,6 +200,7 @@ v8::Handle<v8::Value> Func::CallAndGetPtr(GObject *obj, GIFunctionInfo *info, co
                                                  out_c, instance_desc, g_type_tag_to_string(g_type_info_get_tag(arg_type_info)));
                 g_free(instance_desc);
                 Nan::ThrowError(exc_msg);
+                return Nan::Null();
             }
             out_c++;
         }
