@@ -50,7 +50,7 @@ static void call_next_tick_callback() {
         if (tick_callback_value->IsFunction()) {
             // if it's a Function then we can call it! passing the "process" object as it's context (this)
             // and 0 arguments (nullptr because argc is 0).
-            tick_callback_value->ToObject()->CallAsFunction(process_object, 0, nullptr);
+            Nan::CallAsFunction(tick_callback_value->ToObject(), process_object, 0, nullptr);
         }
     }
 }
