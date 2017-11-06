@@ -24,19 +24,25 @@ std::vector<ObjectFunctionTemplate *> GIRObject::templates;
 std::set<GIRObject *> GIRObject::instances;
 GIPropertyInfo *g_object_info_find_property(GIObjectInfo *info, char *name);
 
-GIRObject::GIRObject(GIObjectInfo *info_, int n_params, GParameter *parameters)
-{
-    info = info_;
-    GType t = g_registered_type_info_get_g_type(info);
+GIRObject::GIRObject(GIObjectInfo *object_info, map<string, GValue> &properties) {
+    this->info = object_info;
+    this->abstract = g_object_info_get_abstract(this->info);
 
-    abstract = g_object_info_get_abstract(info);
-    if (abstract) {
-        obj = nullptr;
+    if (this->abstract) {
+        this->obj = nullptr;
     }
     else {
-        // gobject va_list, to allow construction parameters
-        obj = G_OBJECT(g_object_newv(t, n_params, parameters));
-        debug_printf("New GObject [%p] '%s' \n", obj,G_OBJECT_TYPE_NAME(obj));
+        vector<string> property_names = Util::extract_keys(properties);
+        vector<GValue> property_values = Util::extract_values(properties);
+        vector<const char *> property_names_cstr = Util::stringsToCStrings(property_names);
+
+        // create the native object!
+        this->obj = g_object_new_with_properties(
+            g_registered_type_info_get_g_type(this->info),
+            properties.size(),
+            property_names_cstr.data(),
+            property_values.data()
+        );
     }
 }
 
@@ -95,17 +101,12 @@ Local<Value> GIRObject::New(GObject *existing_gobject, GType gobject_type) {
 }
 
 NAN_METHOD(GIRObject::New) {
-    if (info.Length() == 1 && info[0]->IsBoolean() && !info[0]->IsTrue()) {
-        // TODO: this bit of code looks like a complete HACK and i think
-        // it should be removed! passing 'true' to the constructor randomly
-        // does this logic? why?
-        GIRObject *obj = new GIRObject();
-        obj->Wrap(info.This());
-        GIRObject::instances.insert(obj);
-        info.GetReturnValue().Set(info.This());
+    if (!(info.Length() == 0 || info.Length() == 1)) {
+        Nan::ThrowTypeError("constructors must take 0 or 1 argument");
         return;
     }
 
+    // get our user-data that was originally put on the function when it was created.
     Local<External> object_info_extern = Local<External>::Cast(info.Data());
     GIObjectInfo *object_info = (GIObjectInfo *)object_info_extern->Value();
 
@@ -114,20 +115,15 @@ NAN_METHOD(GIRObject::New) {
         return;
     }
 
-    int length = 0;
-    GParameter *params = nullptr;
-    Local<Value> v = GIRObject::ToParams(info[0], &params, &length, object_info);
-    if (v != Nan::Null()) {
-        info.GetReturnValue().Set(v); // TODO: setting return value without 'return;'. Is this a bug waiting to happen?
+    map<string, GValue> properties;
+    if (info.Length() == 1 && info[0]->IsObject()) {
+        properties = GIRObject::ParseConstructorArgument(info[0]->ToObject(), object_info);
     }
 
-    GIRObject *obj = new GIRObject(object_info, length, params);
-    DeleteParams(params, length);
-
+    GIRObject *obj = new GIRObject(object_info, properties);
     obj->Wrap(info.This());
     GIRObject::instances.insert(obj);
     info.GetReturnValue().Set(info.This());
-    return;
 }
 
 GIRObject::~GIRObject()
@@ -137,79 +133,37 @@ GIRObject::~GIRObject()
     // http://prox.moraphi.com/index.php/https/github.com/bnoordhuis/node/commit/1c20cac
 }
 
-Handle<Value> GIRObject::ToParams(Handle<Value> val, GParameter** params, int *length, GIObjectInfo *info)
-{
-    *length = 0;
-    *params = nullptr;
-    if (!val->IsObject()) {
-        return Nan::Null();
+GType GIRObject::GetObjectPropertyType(GIObjectInfo *object_info, const char *property_name) {
+    void *klass = g_type_class_ref(g_registered_type_info_get_g_type(object_info));
+    GParamSpec *param_spec = g_object_class_find_property(G_OBJECT_CLASS(klass), property_name);
+    g_type_class_unref(klass);
+    if (param_spec == nullptr) {
+        return G_TYPE_INVALID; // signal that the type doesn't exist or is invalid because we can't find it!
     }
-    Handle<Object> obj = val->ToObject();
-
-    Handle<Array> props = obj->GetPropertyNames();
-    *length = props->Length();
-    *params = g_new0(GParameter, *length);
-    GParamSpec *pspec = nullptr;
-    GObjectClass *klass = (GObjectClass*) g_type_class_ref(g_type_from_name(g_object_info_get_type_name(info)));
-    for (int i=0; i<*length; i++) {
-        String::Utf8Value key(props->Get(i)->ToString());
-
-        // nullify name so it can be freed safely
-        (*params)[i].name = nullptr;
-
-        if (!FindProperty(info, *key)) {
-            /* Try to find property spec registered for given class */
-            if (klass) {
-                pspec = g_object_class_find_property(klass, *key);
-            }
-
-            if (!pspec) {
-                DeleteParams(*params, (*length)-1);
-                gchar *msg = g_strdup_printf("Can not find '%s' property", *key);
-                Nan::ThrowTypeError(msg);
-            }
-        }
-
-        GValue gvalue = {0, {{0}}};
-        GType value_type = G_TYPE_INVALID;
-        // Determine the best match for property's type
-        if (klass) {
-            if (!pspec)
-                pspec = g_object_class_find_property(klass, *key);
-
-            if (pspec)
-                value_type = pspec->value_type;
-        }
-        if (!GIRValue::ToGValue(obj->Get(props->Get(i)), value_type, &gvalue)) {
-            DeleteParams(*params, (*length)-1);
-            gchar *msg = g_strdup_printf("'%s' property value conversion failed", *key);
-            Nan::ThrowTypeError(msg);
-        }
-
-        (*params)[i].name = g_strdup(*key);
-        (*params)[i].value = gvalue;
-
-        pspec = nullptr;
-    }
-
-    if (klass)
-        g_type_class_unref(klass);
-
-    return Nan::Null();
+    return G_PARAM_SPEC_VALUE_TYPE(param_spec);
 }
 
-void GIRObject::DeleteParams(GParameter *params, int l)
-{
-    if (params == nullptr)
-        return;
+map<string, GValue> GIRObject::ParseConstructorArgument(Local<Object> properties_object, GIObjectInfo *object_info) {
+    auto properties = map<string, GValue>();
 
-    for (int i=0; i<l; i++) {
-        if (params[i].name == nullptr)
-            break;
-        g_free((gchar *)params[i].name);
-        g_value_unset(&params[i].value);
+    Local<Array> property_names = properties_object->GetPropertyNames();
+    for (int i = 0; i < property_names->Length(); i++) {
+        Local<String> property_name = property_names->Get(i)->ToString();
+        String::Utf8Value property_name_cstr(property_name);
+        GType property_g_type = GIRObject::GetObjectPropertyType(object_info, *property_name_cstr);
+
+        GValue gvalue = {0, {{0}}};
+        if (!GIRValue::ToGValue(properties_object->Get(property_name), property_g_type, &gvalue)) {
+            gchar *msg = g_strdup_printf("'%s' property value conversion failed", *property_name_cstr);
+            Nan::ThrowTypeError(msg); // TODO: this error needs to be handled differently perhaps? maybe a c++ exception instead?
+            return properties;
+        }
+
+        properties.insert(pair<string, GValue>(string(*property_name_cstr), gvalue));
+        auto x = properties.size();
     }
-    g_free(params);
+
+    return properties;
 }
 
 NAN_PROPERTY_GETTER(PropertyGetHandler)

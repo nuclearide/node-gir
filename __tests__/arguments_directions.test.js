@@ -28,7 +28,7 @@ describe('Arguments direction', function() {
     });
 
     it('object', function() {
-      var pixbuf = new GdkPixbuf.Pixbuf(0, false, 1, 1, 1);
+      var pixbuf = new GdkPixbuf.Pixbuf();
       win.setIcon(pixbuf);
     });
   });
