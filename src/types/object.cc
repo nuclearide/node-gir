@@ -24,19 +24,25 @@ std::vector<ObjectFunctionTemplate *> GIRObject::templates;
 std::set<GIRObject *> GIRObject::instances;
 GIPropertyInfo *g_object_info_find_property(GIObjectInfo *info, char *name);
 
-GIRObject::GIRObject(GIObjectInfo *info_, int n_params, GParameter *parameters)
-{
-    info = info_;
-    GType t = g_registered_type_info_get_g_type(info);
+GIRObject::GIRObject(GIObjectInfo *object_info, map<string, GValue> &properties) {
+    this->info = object_info;
+    this->abstract = g_object_info_get_abstract(this->info);
 
-    abstract = g_object_info_get_abstract(info);
-    if (abstract) {
-        obj = nullptr;
+    if (this->abstract) {
+        this->obj = nullptr;
     }
     else {
-        // gobject va_list, to allow construction parameters
-        obj = G_OBJECT(g_object_newv(t, n_params, parameters));
-        debug_printf("New GObject [%p] '%s' \n", obj,G_OBJECT_TYPE_NAME(obj));
+        vector<string> property_names = Util::extract_keys(properties);
+        vector<GValue> property_values = Util::extract_values(properties);
+        vector<const char *> property_names_cstr = Util::stringsToCStrings(property_names);
+
+        // create the native object!
+        this->obj = g_object_new_with_properties(
+            g_registered_type_info_get_g_type(this->info),
+            properties.size(),
+            property_names_cstr.data(),
+            property_values.data()
+        );
     }
 }
 
@@ -55,86 +61,61 @@ GIObjectInfo * _get_object_info(GType obj_type, GIObjectInfo *info) {
 }
 
 Local<Value> GIRObject::New(GObject *existing_gobject, GType gobject_type) {
+    // sanity check our parameters
     if (existing_gobject == nullptr || !G_IS_OBJECT(existing_gobject)) {
         return Nan::Null();
     }
 
+    // if there's already an existing Wrapper (instance) then return that
     MaybeLocal<Value> existing_gir_object = GIRObject::GetInstance(existing_gobject);
     if (!existing_gir_object.IsEmpty()) {
         return existing_gir_object.ToLocalChecked();
     }
 
-    GIBaseInfo *base_info = g_irepository_find_by_gtype(NamespaceLoader::repo, gobject_type);
-    if (base_info == nullptr) {
-        base_info = g_irepository_find_by_gtype(NamespaceLoader::repo, g_type_parent(gobject_type));
-    }
-    if (!GI_IS_OBJECT_INFO(base_info)) {
-         // TODO:
-         // log error?
-         // raise error?
-         // constructors returning null shouldn't be a thing! constructors should always work!
+    GIObjectInfo *object_info = (GIObjectInfo *)g_irepository_find_by_gtype(NamespaceLoader::repo, gobject_type);
+    if (!GI_IS_OBJECT_INFO(object_info)) {
+        // TODO: FIXME:
+        // log error?
+        // raise error?
+        // constructors returning null shouldn't be a thing! constructors should always work!
         return Nan::Null();
     }
 
-    for (auto it = templates.begin(); it != templates.end(); ++it) {
-        ObjectFunctionTemplate *oft = *it;
-        if (gobject_type == oft->type) {
-            Local<Value> new_instance = Nan::New(oft->object_template)->GetFunction()->NewInstance(0, nullptr);
-            if (!new_instance.IsEmpty()) {
-                GIRObject *gir_wrapper = ObjectWrap::Unwrap<GIRObject>(new_instance->ToObject());
-                gir_wrapper->info = oft->info;
-                gir_wrapper->obj = existing_gobject; // TODO: should we g_object_ref()?
-                gir_wrapper->abstract = false;
-                return new_instance;
-            }
-            return Nan::Null();
-        }
-    }
-
-    return Nan::Null();
+    // find/create an object template, then initialize it with the existing GObject
+    ObjectFunctionTemplate *oft = GIRObject::FindOrCreateTemplateFromObjectInfo(object_info);
+    Local<Function> instance_constructor = Nan::GetFunction(Nan::New(oft->object_template)).ToLocalChecked();
+    Local<Object> instance = Nan::NewInstance(instance_constructor).ToLocalChecked();
+    GIRObject *gir_wrapper = ObjectWrap::Unwrap<GIRObject>(instance);
+    gir_wrapper->info = oft->info;
+    gir_wrapper->obj = existing_gobject; // TODO: should we g_object_ref()?
+    gir_wrapper->abstract = false;
+    return instance;
 }
 
-NAN_METHOD(GIRObject::New)
-{
-    if (info.Length() == 1 && info[0]->IsBoolean() && !info[0]->IsTrue()) {
-        GIRObject *obj = new GIRObject();
-        obj->Wrap(info.This());
-        GIRObject::instances.insert(obj);
-        info.GetReturnValue().Set(info.This());
+NAN_METHOD(GIRObject::New) {
+    if (!(info.Length() == 0 || info.Length() == 1)) {
+        Nan::ThrowTypeError("constructors must take 0 or 1 argument");
         return;
     }
 
-    String::Utf8Value className(info.Callee()->GetName());
+    // get our user-data that was originally put on the function when it was created.
+    Local<External> object_info_extern = Local<External>::Cast(info.Data());
+    GIObjectInfo *object_info = (GIObjectInfo *)object_info_extern->Value();
 
-    debug_printf ("CTR '%s' \n", *className);
-
-    GIObjectInfo *objinfo = nullptr;
-    for (auto it = templates.begin(); it != templates.end(); ++it) {
-        ObjectFunctionTemplate *oft = *it;
-        if (strcmp(oft->type_name, *className) == 0) {
-            objinfo = oft->info;
-            break;
-        }
+    if (object_info == nullptr) {
+        Nan::ThrowError("no type information available for object constructor! this is likely a bug with node-gir!");
+        return;
     }
 
-    if (objinfo == nullptr) {
-        Nan::ThrowError("no such class. Callee()->GetName() returned wrong classname");
+    map<string, GValue> properties;
+    if (info.Length() == 1 && info[0]->IsObject()) {
+        properties = GIRObject::ParseConstructorArgument(info[0]->ToObject(), object_info);
     }
 
-    int length = 0;
-    GParameter *params = nullptr;
-    Local<Value> v = ToParams(info[0], &params, &length, objinfo);
-    if (v != Nan::Null()) {
-        info.GetReturnValue().Set(v);
-    }
-
-    GIRObject *obj = new GIRObject(objinfo, length, params);
-    DeleteParams(params, length);
-
+    GIRObject *obj = new GIRObject(object_info, properties);
     obj->Wrap(info.This());
     GIRObject::instances.insert(obj);
     info.GetReturnValue().Set(info.This());
-    return;
 }
 
 GIRObject::~GIRObject()
@@ -144,79 +125,36 @@ GIRObject::~GIRObject()
     // http://prox.moraphi.com/index.php/https/github.com/bnoordhuis/node/commit/1c20cac
 }
 
-Handle<Value> GIRObject::ToParams(Handle<Value> val, GParameter** params, int *length, GIObjectInfo *info)
-{
-    *length = 0;
-    *params = nullptr;
-    if (!val->IsObject()) {
-        return Nan::Null();
+GType GIRObject::GetObjectPropertyType(GIObjectInfo *object_info, const char *property_name) {
+    void *klass = g_type_class_ref(g_registered_type_info_get_g_type(object_info));
+    GParamSpec *param_spec = g_object_class_find_property(G_OBJECT_CLASS(klass), property_name);
+    g_type_class_unref(klass);
+    if (param_spec == nullptr) {
+        return G_TYPE_INVALID; // signal that the type doesn't exist or is invalid because we can't find it!
     }
-    Handle<Object> obj = val->ToObject();
-
-    Handle<Array> props = obj->GetPropertyNames();
-    *length = props->Length();
-    *params = g_new0(GParameter, *length);
-    GParamSpec *pspec = nullptr;
-    GObjectClass *klass = (GObjectClass*) g_type_class_ref(g_type_from_name(g_object_info_get_type_name(info)));
-    for (int i=0; i<*length; i++) {
-        String::Utf8Value key(props->Get(i)->ToString());
-
-        // nullify name so it can be freed safely
-        (*params)[i].name = nullptr;
-
-        if (!FindProperty(info, *key)) {
-            /* Try to find property spec registered for given class */
-            if (klass) {
-                pspec = g_object_class_find_property(klass, *key);
-            }
-
-            if (!pspec) {
-                DeleteParams(*params, (*length)-1);
-                gchar *msg = g_strdup_printf("Can not find '%s' property", *key);
-                Nan::ThrowTypeError(msg);
-            }
-        }
-
-        GValue gvalue = {0, {{0}}};
-        GType value_type = G_TYPE_INVALID;
-        // Determine the best match for property's type
-        if (klass) {
-            if (!pspec)
-                pspec = g_object_class_find_property(klass, *key);
-
-            if (pspec)
-                value_type = pspec->value_type;
-        }
-        if (!GIRValue::ToGValue(obj->Get(props->Get(i)), value_type, &gvalue)) {
-            DeleteParams(*params, (*length)-1);
-            gchar *msg = g_strdup_printf("'%s' property value conversion failed", *key);
-            Nan::ThrowTypeError(msg);
-        }
-
-        (*params)[i].name = g_strdup(*key);
-        (*params)[i].value = gvalue;
-
-        pspec = nullptr;
-    }
-
-    if (klass)
-        g_type_class_unref(klass);
-
-    return Nan::Null();
+    return G_PARAM_SPEC_VALUE_TYPE(param_spec);
 }
 
-void GIRObject::DeleteParams(GParameter *params, int l)
-{
-    if (params == nullptr)
-        return;
+map<string, GValue> GIRObject::ParseConstructorArgument(Local<Object> properties_object, GIObjectInfo *object_info) {
+    auto properties = map<string, GValue>();
 
-    for (int i=0; i<l; i++) {
-        if (params[i].name == nullptr)
-            break;
-        g_free((gchar *)params[i].name);
-        g_value_unset(&params[i].value);
+    Local<Array> property_names = properties_object->GetPropertyNames();
+    for (size_t i = 0; i < property_names->Length(); i++) {
+        Local<String> property_name = property_names->Get(i)->ToString();
+        String::Utf8Value property_name_cstr(property_name);
+        GType property_g_type = GIRObject::GetObjectPropertyType(object_info, *property_name_cstr);
+
+        GValue gvalue = {0, {{0}}};
+        if (!GIRValue::ToGValue(properties_object->Get(property_name), property_g_type, &gvalue)) {
+            gchar *msg = g_strdup_printf("'%s' property value conversion failed", *property_name_cstr);
+            Nan::ThrowTypeError(msg); // TODO: this error needs to be handled differently perhaps? maybe a c++ exception instead?
+            return properties;
+        }
+
+        properties.insert(pair<string, GValue>(string(*property_name_cstr), gvalue));
     }
-    g_free(params);
+
+    return properties;
 }
 
 NAN_PROPERTY_GETTER(PropertyGetHandler)
@@ -297,7 +235,8 @@ NAN_PROPERTY_SETTER(PropertySetHandler)
 }
 
 ObjectFunctionTemplate* GIRObject::CreateObjectTemplate(GIObjectInfo *object_info) {
-    Local<FunctionTemplate> object_template = Nan::New<FunctionTemplate>(GIRObject::New);
+    Local<External> object_info_extern = Nan::New<External>((void *)g_base_info_ref(object_info));
+    Local<FunctionTemplate> object_template = Nan::New<FunctionTemplate>(GIRObject::New, object_info_extern);
 
     ObjectFunctionTemplate *oft = new ObjectFunctionTemplate(); // TODO: where do we deallocate? When the namespace object (the node module) is collected?
     g_base_info_ref(object_info); // ref the info because we're storing an reference on 'oft'
@@ -368,13 +307,21 @@ void GIRObject::ExtendParent(Local<FunctionTemplate> &object_template, GIObjectI
     g_base_info_unref(parent_object_info);
 }
 
-ObjectFunctionTemplate* GIRObject::FindOrCreateTemplateFromObjectInfo(GIObjectInfo *object_info) {
+ObjectFunctionTemplate* GIRObject::FindTemplateFromObjectInfo(GIObjectInfo *object_info) {
     for (auto oft : GIRObject::templates) {
         if (g_base_info_equal(object_info, oft->info)) {
             return oft;
         }
     }
-    return GIRObject::CreateObjectTemplate(object_info);
+    return nullptr;
+}
+
+ObjectFunctionTemplate* GIRObject::FindOrCreateTemplateFromObjectInfo(GIObjectInfo *object_info) {
+    ObjectFunctionTemplate *oft = GIRObject::FindTemplateFromObjectInfo(object_info);
+    if (oft == nullptr) {
+        return GIRObject::CreateObjectTemplate(object_info);
+    }
+    return oft;
 }
 
 void GIRObject::SetCustomFields(Local<FunctionTemplate> &object_template, GIObjectInfo *object_info) {
@@ -397,7 +344,6 @@ void GIRObject::SetCustomPrototypeMethods(Local<FunctionTemplate> &object_templa
     Nan::SetPrototypeMethod(object_template, "__set_property__", GIRObject::SetProperty);
     Nan::SetPrototypeMethod(object_template, "__get_interface__", GIRObject::GetInterface);
     Nan::SetPrototypeMethod(object_template, "__get_field__", GIRObject::GetField);
-    Nan::SetPrototypeMethod(object_template, "__call_v_func__", GIRObject::CallMethod);
 
     // Add our 'connect' method to the target.
     // This method is used to connect signals to the underlying gobject.
@@ -415,43 +361,6 @@ MaybeLocal<Value> GIRObject::GetInstance(GObject *obj) {
         }
     }
     return MaybeLocal<Value>();
-}
-
-NAN_METHOD(GIRObject::CallUnknownMethod)
-{
-    String::Utf8Value fname(info.Callee()->GetName());
-    debug_printf("Call method '%s' \n", *fname);
-    GIRObject *that = Nan::ObjectWrap::Unwrap<GIRObject>(info.This()->ToObject());
-    GIFunctionInfo *func = that->FindMethod(that->info, *fname);
-    debug_printf("Call Method: '%s' [%p] \n", *fname, func);
-
-    if (func) {
-        debug_printf("\t Call symbol: '%s' \n", g_function_info_get_symbol(func));
-        info.GetReturnValue().Set(Func::Call(that->obj, func, info, TRUE));
-    }
-    else {
-        Nan::ThrowError("no such method");
-    }
-}
-
-NAN_METHOD(GIRObject::CallMethod)
-{
-    if (info.Length() < 1 || !info[0]->IsString()) {
-        Nan::ThrowError("Invalid argument's number or type");
-    }
-
-    String::Utf8Value fname(info[0]);
-    GIRObject *that = Nan::ObjectWrap::Unwrap<GIRObject>(info.This()->ToObject());
-    GIFunctionInfo *func = that->FindMethod(that->info, *fname);
-
-    if (func) {
-        info.GetReturnValue().Set(Func::Call(that->obj, func, info, FALSE));
-    }
-    else {
-        Nan::ThrowError("no such method");
-    }
-
-    info.GetReturnValue().SetUndefined();
 }
 
 /**
@@ -620,36 +529,6 @@ NAN_METHOD(GIRObject::CallVFunc)
     }
 
     info.GetReturnValue().SetUndefined();
-}
-
-GIFunctionInfo *GIRObject::FindMethod(GIObjectInfo *info, char *js_name)
-{
-    // given the JS function/method names are camelCased, we should
-    // convert to snake case first!
-    string snake_case_name = Util::toSnakeCase(string(js_name));
-    const char* native_name = snake_case_name.c_str();
-    GIFunctionInfo *func = g_object_info_find_method(info, native_name);
-
-    // Find interface method
-    if (!func) {
-        int ifaces = g_object_info_get_n_interfaces(info);
-        for (int i = 0; i < ifaces; i++) {
-            GIInterfaceInfo *iface_info = g_object_info_get_interface(info, i);
-            func = g_interface_info_find_method(iface_info, native_name);
-            if (func) {
-                g_base_info_unref(iface_info);
-                return func;
-            }
-            g_base_info_unref(iface_info);
-        }
-    }
-
-    if (!func) {
-        GIObjectInfo *parent = g_object_info_get_parent(info);
-        func = FindMethod(parent, js_name);
-        g_base_info_unref(parent);
-    }
-    return func;
 }
 
 GIPropertyInfo *g_object_info_find_property(GIObjectInfo *info, char *name)
@@ -925,29 +804,16 @@ void GIRObject::RegisterMethods(GIObjectInfo *object_info, const char *namespace
  */
 void GIRObject::SetMethod(Local<FunctionTemplate> &target, GIFunctionInfo *function_info) {
     const char *native_name = g_base_info_get_name(function_info);
-
-    // we want to get a c_str() from this output std::string of toCamelCase
-    // we need to keep a reference to the std::string so the underlying c_str()
-    // is safe to use! That's why we have 2 line here not 1.
-    std::string js_name = Util::toCamelCase(std::string(native_name));
-
-    GIFunctionInfoFlags flags = g_function_info_get_flags(function_info);
-    if (flags & GI_FUNCTION_IS_METHOD) {
+    string js_name = Util::toCamelCase(std::string(native_name));
+    Local<String> js_function_name = Nan::New(js_name.c_str()).ToLocalChecked();
+    if (g_function_info_get_flags(function_info) & GI_FUNCTION_IS_METHOD) {
         // if the function is a method, then we want to set it on the prototype
         // of the target, as a GI_FUNCTION_IS_METHOD is an instance method.
-        Nan::SetPrototypeMethod(target, js_name.c_str(), GIRObject::CallUnknownMethod);
+        target->PrototypeTemplate()->Set(js_function_name, Func::CreateMethod(function_info));
     } else {
         // else if it's not a method, then we want to set it as a static function
         // on the target itself (not the prototype)
-        Local<FunctionTemplate> static_function = Nan::New<FunctionTemplate>(Func::CallStaticMethod);
-
-        // set a private value on the function. this is used to lookup the GIFunctionInfo
-        // inside the Func::CallStaticMethod function. TODO: find an alternative to this design!
-        Local<External> function_info_extern = Nan::New<External>((void *)g_base_info_ref(function_info));
-        Nan::SetPrivate(static_function->GetFunction(), Nan::New("GIInfo").ToLocalChecked(), function_info_extern);
-
-        // set the function on the target.
-        target->Set(Nan::New(js_name.c_str()).ToLocalChecked(), static_function);
+        target->Set(js_function_name, Func::CreateFunction(function_info));
     }
 }
 

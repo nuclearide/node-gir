@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <set>
+#include <map>
 #include <v8.h>
 #include <nan.h>
 #include <glib.h>
@@ -10,6 +11,7 @@
 namespace gir {
 
 using namespace v8;
+using namespace std;
 
 class GIRObject;
 
@@ -37,7 +39,7 @@ struct InstanceData {
 class GIRObject : public Nan::ObjectWrap {
   public:
     GIRObject() {};
-    GIRObject(GIObjectInfo *info_, int n_params, GParameter *parameters);
+    GIRObject(GIObjectInfo *info_, map<string, GValue> &properties);
     virtual ~GIRObject();
 
     GObject *obj;
@@ -58,8 +60,6 @@ class GIRObject : public Nan::ObjectWrap {
 
     static void Initialize(Local<Object> target, char *namespace_);
 
-    static NAN_METHOD(CallMethod);
-    static NAN_METHOD(CallUnknownMethod);
     static NAN_METHOD(GetProperty);
     static NAN_METHOD(SetProperty);
     static NAN_METHOD(GetInterface);
@@ -70,6 +70,7 @@ class GIRObject : public Nan::ObjectWrap {
 
     static MaybeLocal<Value> GetInstance(GObject *obj);
     static ObjectFunctionTemplate* CreateObjectTemplate(GIObjectInfo *object_info);
+    static ObjectFunctionTemplate* FindTemplateFromObjectInfo(GIObjectInfo *object_info);
     static ObjectFunctionTemplate* FindOrCreateTemplateFromObjectInfo(GIObjectInfo *object_info);
 
     static GIFunctionInfo *FindMethod(GIObjectInfo *inf, char *name);
@@ -88,9 +89,8 @@ class GIRObject : public Nan::ObjectWrap {
     static Local<ObjectTemplate> FieldList(GIObjectInfo *info);
     static Local<ObjectTemplate> SignalList(GIObjectInfo *info);
     static Local<ObjectTemplate> VFuncList(GIObjectInfo *info);
-
-    static Local<Value> ToParams(Local<Value> val, GParameter** p, int *length, GIObjectInfo *info);
-    static void DeleteParams(GParameter* params, int length);
+    static GType GetObjectPropertyType(GIObjectInfo *object_info, const char *property_name);
+    static map<string, GValue> ParseConstructorArgument(Local<Object> properties_object, GIObjectInfo *object_info);
 };
 
 }

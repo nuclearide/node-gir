@@ -3,7 +3,7 @@ const { load, Gtk } = require('../');
 const GObject = load('GObject');
 const GdkPixbuf = load('GdkPixbuf');
 
-const pixbuf = new GdkPixbuf.Pixbuf(0, false, 1, 1, 1);
+const pixbuf = new GdkPixbuf.Pixbuf();
 
 describe('functions', () => {
   describe('functions can be called', () => {

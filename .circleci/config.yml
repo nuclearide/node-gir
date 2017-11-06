@@ -2,6 +2,7 @@ version: 2
 
 test_steps: &test_steps
   - checkout
+  - run: echo "deb http://deb.debian.org/debian testing main" >> /etc/apt/sources.list
   - run: apt-get update
   - run: apt-get install -y xvfb libgirepository1.0-dev libgtk-3-dev # xvfb for running headless tests (headless X11 server).
   - run: npm install
@@ -10,11 +11,6 @@ test_steps: &test_steps
 
 jobs:
   build:
-    docker:
-      - image: node:latest
-    steps: *test_steps
-
-  node-9:
     docker:
       - image: node:9-stretch
     steps: *test_steps
@@ -34,6 +30,5 @@ workflows:
   build_and_test:
     jobs:
       - build
-      - node-9
       - node-8
       - node-6
