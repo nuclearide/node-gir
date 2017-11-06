@@ -30,6 +30,5 @@ workflows:
   build_and_test:
     jobs:
       - build
-      - node-9
       - node-8
       - node-6
