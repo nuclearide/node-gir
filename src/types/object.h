@@ -70,6 +70,7 @@ class GIRObject : public Nan::ObjectWrap {
 
     static MaybeLocal<Value> GetInstance(GObject *obj);
     static ObjectFunctionTemplate* CreateObjectTemplate(GIObjectInfo *object_info);
+    static ObjectFunctionTemplate* FindTemplateFromObjectInfo(GIObjectInfo *object_info);
     static ObjectFunctionTemplate* FindOrCreateTemplateFromObjectInfo(GIObjectInfo *object_info);
 
     static GIFunctionInfo *FindMethod(GIObjectInfo *inf, char *name);

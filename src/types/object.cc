@@ -61,43 +61,35 @@ GIObjectInfo * _get_object_info(GType obj_type, GIObjectInfo *info) {
 }
 
 Local<Value> GIRObject::New(GObject *existing_gobject, GType gobject_type) {
+    // sanity check our parameters
     if (existing_gobject == nullptr || !G_IS_OBJECT(existing_gobject)) {
         return Nan::Null();
     }
 
+    // if there's already an existing Wrapper (instance) then return that
     MaybeLocal<Value> existing_gir_object = GIRObject::GetInstance(existing_gobject);
     if (!existing_gir_object.IsEmpty()) {
         return existing_gir_object.ToLocalChecked();
     }
 
-    GIBaseInfo *base_info = g_irepository_find_by_gtype(NamespaceLoader::repo, gobject_type);
-    if (base_info == nullptr) {
-        base_info = g_irepository_find_by_gtype(NamespaceLoader::repo, g_type_parent(gobject_type));
-    }
-    if (!GI_IS_OBJECT_INFO(base_info)) {
-         // TODO:
-         // log error?
-         // raise error?
-         // constructors returning null shouldn't be a thing! constructors should always work!
+    GIObjectInfo *object_info = (GIObjectInfo *)g_irepository_find_by_gtype(NamespaceLoader::repo, gobject_type);
+    if (!GI_IS_OBJECT_INFO(object_info)) {
+        // TODO: FIXME:
+        // log error?
+        // raise error?
+        // constructors returning null shouldn't be a thing! constructors should always work!
         return Nan::Null();
     }
 
-    for (auto it = templates.begin(); it != templates.end(); ++it) {
-        ObjectFunctionTemplate *oft = *it;
-        if (gobject_type == oft->type) {
-            Local<Value> new_instance = Nan::New(oft->object_template)->GetFunction()->NewInstance(0, nullptr);
-            if (!new_instance.IsEmpty()) {
-                GIRObject *gir_wrapper = ObjectWrap::Unwrap<GIRObject>(new_instance->ToObject());
-                gir_wrapper->info = oft->info;
-                gir_wrapper->obj = existing_gobject; // TODO: should we g_object_ref()?
-                gir_wrapper->abstract = false;
-                return new_instance;
-            }
-            return Nan::Null();
-        }
-    }
-
-    return Nan::Null();
+    // find/create an object template, then initialize it with the existing GObject
+    ObjectFunctionTemplate *oft = GIRObject::FindOrCreateTemplateFromObjectInfo(object_info);
+    Local<Function> instance_constructor = Nan::GetFunction(Nan::New(oft->object_template)).ToLocalChecked();
+    Local<Object> instance = Nan::NewInstance(instance_constructor).ToLocalChecked();
+    GIRObject *gir_wrapper = ObjectWrap::Unwrap<GIRObject>(instance);
+    gir_wrapper->info = oft->info;
+    gir_wrapper->obj = existing_gobject; // TODO: should we g_object_ref()?
+    gir_wrapper->abstract = false;
+    return instance;
 }
 
 NAN_METHOD(GIRObject::New) {
@@ -147,7 +139,7 @@ map<string, GValue> GIRObject::ParseConstructorArgument(Local<Object> properties
     auto properties = map<string, GValue>();
 
     Local<Array> property_names = properties_object->GetPropertyNames();
-    for (int i = 0; i < property_names->Length(); i++) {
+    for (size_t i = 0; i < property_names->Length(); i++) {
         Local<String> property_name = property_names->Get(i)->ToString();
         String::Utf8Value property_name_cstr(property_name);
         GType property_g_type = GIRObject::GetObjectPropertyType(object_info, *property_name_cstr);
@@ -160,7 +152,6 @@ map<string, GValue> GIRObject::ParseConstructorArgument(Local<Object> properties
         }
 
         properties.insert(pair<string, GValue>(string(*property_name_cstr), gvalue));
-        auto x = properties.size();
     }
 
     return properties;
@@ -316,13 +307,21 @@ void GIRObject::ExtendParent(Local<FunctionTemplate> &object_template, GIObjectI
     g_base_info_unref(parent_object_info);
 }
 
-ObjectFunctionTemplate* GIRObject::FindOrCreateTemplateFromObjectInfo(GIObjectInfo *object_info) {
+ObjectFunctionTemplate* GIRObject::FindTemplateFromObjectInfo(GIObjectInfo *object_info) {
     for (auto oft : GIRObject::templates) {
         if (g_base_info_equal(object_info, oft->info)) {
             return oft;
         }
     }
-    return GIRObject::CreateObjectTemplate(object_info);
+    return nullptr;
+}
+
+ObjectFunctionTemplate* GIRObject::FindOrCreateTemplateFromObjectInfo(GIObjectInfo *object_info) {
+    ObjectFunctionTemplate *oft = GIRObject::FindTemplateFromObjectInfo(object_info);
+    if (oft == nullptr) {
+        return GIRObject::CreateObjectTemplate(object_info);
+    }
+    return oft;
 }
 
 void GIRObject::SetCustomFields(Local<FunctionTemplate> &object_template, GIObjectInfo *object_info) {

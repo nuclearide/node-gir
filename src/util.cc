@@ -90,7 +90,7 @@ string toSnakeCase(const string input) {
 vector<const char *> stringsToCStrings(vector<string> &string_vector) {
     vector<const char *> c_string_vector;
     c_string_vector.reserve(string_vector.size());
-    for (auto i = 0; i < string_vector.size(); i++) {
+    for (size_t i = 0; i < string_vector.size(); i++) {
         c_string_vector.push_back(const_cast<char *>(string_vector[i].c_str()));
     }
     return c_string_vector;
