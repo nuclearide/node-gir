@@ -51,7 +51,7 @@ describe('functions', () => {
       expect(typeof (window.icon)).toEqual('object');
     });
 
-    test('functions can return: void', function () {
+    test('void functions return undefined', function () {
       const window = new Gtk.Window();
       const voidValue = window.resize(10, 10);
       expect(voidValue).toBeUndefined();

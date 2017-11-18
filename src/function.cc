@@ -60,9 +60,9 @@ Local<Value> Func::Call(GObject *obj, GIFunctionInfo *function_info, const Nan::
 
     auto args = Args::Prepare((GICallableInfo *)function_info);
     args.loadJSArguments(js_callback_info);
-    // if (g_callable_info_is_method(function_info)) {
-    //     args.SetContext(obj);
-    // }
+    if (g_callable_info_is_method(function_info)) {
+        args.loadContext(obj);
+    }
 
     GError *error = nullptr;
     g_function_info_invoke(
@@ -81,7 +81,13 @@ Local<Value> Func::Call(GObject *obj, GIFunctionInfo *function_info, const Nan::
         return Nan::Undefined();
     }
 
-    return Nan::Undefined();
+    Local<Value> js_return_value = Args::FromGType(
+        &args.return_value,
+        args.return_type_info,
+        0
+    );
+
+    return js_return_value;
 }
 
 }

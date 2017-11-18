@@ -14,9 +14,11 @@ namespace gir {
 Args::Args(GICallableInfo *callable_info) {
     g_base_info_ref(callable_info);
     this->callable_info = callable_info;
+    this->return_type_info = g_callable_info_get_return_type(callable_info);
 }
 
 Args::~Args() {
+    g_base_info_unref(this->return_type_info);
     g_base_info_unref(this->callable_info);
 }
 
@@ -33,18 +35,19 @@ void Args::loadJSArguments(const Nan::FunctionCallbackInfo<v8::Value> &js_callba
 
     // for every expected native argument, we will convert the corresponding
     // JS argument to it.
-    for (guint8 i; i < gi_argc; i++) {
+    for (guint8 i = 0; i < gi_argc; i++) {
         GIArgInfo argument_info;
         g_callable_info_load_arg(this->callable_info, i, &argument_info);
         GIDirection argument_direction = g_arg_info_get_direction(&argument_info);
 
-        if (argument_direction == GI_DIRECTION_OUT) {
+        if (argument_direction == GI_DIRECTION_IN) {
             GIArgument argument = this->GetArgumentValue(js_callback_info[i], argument_info);
             this->in.push_back(argument);
         }
 
         if (argument_direction == GI_DIRECTION_OUT) {
             // TODO: support this
+            printf("GI_DIRECTION_OUT arguments aren't supported yet.\n");
         }
 
         if (argument_direction == GI_DIRECTION_INOUT) {
@@ -53,6 +56,12 @@ void Args::loadJSArguments(const Nan::FunctionCallbackInfo<v8::Value> &js_callba
             this->out.push_back(argument);
         }
     }
+}
+
+void Args::loadContext(GObject *this_object) {
+    GIArgument this_object_argument;
+    this_object_argument.v_pointer = this_object;
+    this->in.insert(this->in.begin(), this_object_argument);
 }
 
 GIArgument Args::GetArgumentValue(const Local<Value> &js_value, GIArgInfo &argument_info) {
