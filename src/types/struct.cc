@@ -62,33 +62,33 @@ Handle<Value> GIRStruct::New(gpointer c_structure, GIStructInfo *info)
 }
 
 NAN_METHOD(GIRStruct::New) {
-    Local<External> struct_info_extern = Local<External>::Cast(info.Data());
-    GIStructInfo *struct_info = (GIStructInfo *)struct_info_extern->Value();
+    // Local<External> struct_info_extern = Local<External>::Cast(info.Data());
+    // GIStructInfo *struct_info = (GIStructInfo *)struct_info_extern->Value();
 
-    GIFunctionInfo *func  = g_struct_info_find_method(struct_info, "new");
-    if (func == nullptr) {
-        Nan::ThrowError("GIRStruct was unable to be constructed because there is no 'new' function!");
-        return;
-    }
+    // GIFunctionInfo *func  = g_struct_info_find_method(struct_info, "new");
+    // if (func == nullptr) {
+    //     Nan::ThrowError("GIRStruct was unable to be constructed because there is no 'new' function!");
+    //     return;
+    // }
 
-    GIArgument retval;
-    GITypeInfo *returned_type_info;
-    gint returned_array_length;
-    Func::CallAndGetPtr(nullptr, func, info, TRUE, &retval, &returned_type_info, &returned_array_length);
+    // GIArgument retval;
+    // GITypeInfo *returned_type_info;
+    // gint returned_array_length;
+    // Func::CallAndGetPtr(nullptr, func, info, TRUE, &retval, &returned_type_info, &returned_array_length);
 
-    if (returned_type_info != nullptr)
-        g_base_info_unref(returned_type_info);
+    // if (returned_type_info != nullptr)
+    //     g_base_info_unref(returned_type_info);
 
-    GIRStruct *obj = new GIRStruct(struct_info);
+    // GIRStruct *obj = new GIRStruct(struct_info);
 
-    /* Set underlying C structure */
-    obj->c_structure = (gpointer) retval.v_pointer;
+    // /* Set underlying C structure */
+    // obj->c_structure = (gpointer) retval.v_pointer;
 
-    obj->Wrap(info.This());
-    PushInstance(obj, info.This());
-    obj->info = struct_info;
+    // obj->Wrap(info.This());
+    // PushInstance(obj, info.This());
+    // obj->info = struct_info;
 
-    info.GetReturnValue().Set(info.This());
+    // info.GetReturnValue().Set(info.This());
 }
 
 GIFieldInfo *_find_structure_member(GIStructInfo *info, const gchar *name)
@@ -267,7 +267,7 @@ NAN_METHOD(GIRStruct::CallMethod) {
     Local<External> function_info_extern = Local<External>::Cast(info.Data());
     GIFunctionInfo *function_info = (GIFunctionInfo *)function_info_extern->Value();
     GIRStruct *that = Nan::ObjectWrap::Unwrap<GIRStruct>(info.This()->ToObject());
-    Local<Value> result = Func::Call((GObject *)that->c_structure, function_info, info, TRUE);
+    Local<Value> result = Func::Call((GObject *)that->c_structure, function_info, info);
     info.GetReturnValue().Set(result);
 }
 

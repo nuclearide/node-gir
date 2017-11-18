@@ -87,6 +87,7 @@ string toSnakeCase(const string input) {
   return output;
 }
 
+// TODO: I think this can segfault the caller because of c_str().
 vector<const char *> stringsToCStrings(vector<string> &string_vector) {
     vector<const char *> c_string_vector;
     c_string_vector.reserve(string_vector.size());

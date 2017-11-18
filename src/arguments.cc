@@ -11,6 +11,59 @@ using namespace v8;
 
 namespace gir {
 
+Args::Args(GICallableInfo *callable_info) {
+    g_base_info_ref(callable_info);
+    this->callable_info = callable_info;
+}
+
+Args::~Args() {
+    g_base_info_unref(this->callable_info);
+}
+
+Args Args::Prepare(GICallableInfo *callable_info) {
+    auto instance = Args(callable_info);
+    return instance;
+}
+
+void Args::loadJSArguments(const Nan::FunctionCallbackInfo<v8::Value> &js_callback_info) {
+    auto function_name = g_base_info_get_name(this->callable_info);
+
+    // get the number of arguments the native function requires
+    guint8 gi_argc = g_callable_info_get_n_args(this->callable_info);
+
+    // for every expected native argument, we will convert the corresponding
+    // JS argument to it.
+    for (guint8 i; i < gi_argc; i++) {
+        GIArgInfo argument_info;
+        g_callable_info_load_arg(this->callable_info, i, &argument_info);
+        GIDirection argument_direction = g_arg_info_get_direction(&argument_info);
+
+        if (argument_direction == GI_DIRECTION_OUT) {
+            GIArgument argument = this->GetArgumentValue(js_callback_info[i], argument_info);
+            this->in.push_back(argument);
+        }
+
+        if (argument_direction == GI_DIRECTION_OUT) {
+            // TODO: support this
+        }
+
+        if (argument_direction == GI_DIRECTION_INOUT) {
+            GIArgument argument = this->GetArgumentValue(js_callback_info[i], argument_info);
+            this->in.push_back(argument);
+            this->out.push_back(argument);
+        }
+    }
+}
+
+GIArgument Args::GetArgumentValue(const Local<Value> &js_value, GIArgInfo &argument_info) {
+    GITypeInfo argument_type_info;
+    g_arg_info_load_type(&argument_info, &argument_type_info);
+    GArgument argument;
+    Args::ToGType(js_value, &argument, &argument_info, &argument_type_info, false);
+    return argument;
+}
+
+
 bool Args::ToGType(Handle<Value> v, GIArgument *arg, GIArgInfo *info, GITypeInfo *type_info, bool out) {
     GITypeInfo *type = type_info;
     if (info != nullptr)
