@@ -47,23 +47,14 @@ NAN_METHOD(Func::InvokeMethod) {
     info.GetReturnValue().Set(js_func_result);
 }
 
-Local<Value> Func::Call(GObject *obj, GIFunctionInfo *function_info, const Nan::FunctionCallbackInfo<v8::Value> &js_callback_info) {
-
-    // bool is_method = ;
-    // bool can_throw_gerror = g_callable_info_can_throw_gerror(function_info);
-
-    // int js_argc = js_callback_info.Length();
-    // guint8 gi_argc = g_callable_info_get_n_args(function_info);
-
-    // GITypeInfo *return_type_info = g_callable_info_get_return_type(function_info);
-    // GITypeTag return_type_tag = g_type_info_get_tag(return_type_info);
-
-    auto args = Args::Prepare((GICallableInfo *)function_info);
+GIArgument Func::CallNative(GObject *obj, GIFunctionInfo *function_info, const Nan::FunctionCallbackInfo<v8::Value> &js_callback_info) {
+    Args args = Args::Prepare((GICallableInfo *)function_info);
     args.loadJSArguments(js_callback_info);
     if (g_callable_info_is_method(function_info)) {
         args.loadContext(obj);
     }
 
+    GIArgument return_value;
     GError *error = nullptr;
     g_function_info_invoke(
         function_info,
@@ -71,20 +62,33 @@ Local<Value> Func::Call(GObject *obj, GIFunctionInfo *function_info, const Nan::
         args.in.size(),
         args.out.data(),
         args.out.size(),
-        &args.return_value,
+        &return_value,
         &error
     );
 
     if (error != nullptr) {
         Nan::ThrowError(Nan::New(error->message).ToLocalChecked());
         g_error_free(error);
+    }
+
+    return return_value;
+}
+
+Local<Value> Func::Call(GObject *obj, GIFunctionInfo *function_info, const Nan::FunctionCallbackInfo<v8::Value> &js_callback_info) {
+    Nan::TryCatch exception_handler;
+    GIArgument result = Func::CallNative(obj, function_info, js_callback_info);
+    if (exception_handler.HasCaught()) {
+        exception_handler.ReThrow();
         return Nan::Undefined();
     }
 
+    GITypeInfo return_type_info;
+    g_callable_info_load_return_type(function_info, &return_type_info);
+
     Local<Value> js_return_value = Args::FromGType(
-        &args.return_value,
-        args.return_type_info,
-        0
+        &result,
+        &return_type_info,
+        0 // 0 array size. TODO: can we avoid have to do this?
     );
 
     return js_return_value;

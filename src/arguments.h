@@ -17,7 +17,6 @@ class Args {
 
     vector<GIArgument> in;
     vector<GIArgument> out;
-    GIArgument return_value;
     GITypeInfo *return_type_info;
 
     void loadJSArguments(const Nan::FunctionCallbackInfo<v8::Value> &js_callback_info);

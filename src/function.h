@@ -11,6 +11,7 @@ using namespace v8;
 
 class Func {
   public:
+    static GIArgument CallNative(GObject *obj, GIFunctionInfo *info, const Nan::FunctionCallbackInfo<v8::Value>&args);
     static v8::Local<v8::Value> Call(GObject *obj, GIFunctionInfo *info, const Nan::FunctionCallbackInfo<v8::Value>&args);
 
     static Local<FunctionTemplate> CreateFunction(GIFunctionInfo *function_info);

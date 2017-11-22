@@ -46,7 +46,7 @@ Handle<Value> GIRStruct::New(gpointer c_structure, GIStructInfo *info)
         // TODO: this will be fixed when we refactor GIRStruct.
         // ideally it'll share many things with GIRObject (because in JS land they are the same)
         // but I haven't yet figured how how to refactor GIRObject/GIRStruct to share code/logic.
-        Nan::ThrowTypeError("GIRStruct does not currently support creating new instances from existing GObject instances.");
+        g_warning("GIRStruct does not currently support creating new instances from existing GObject instances.");
         return Nan::Null();
     }
 
@@ -62,33 +62,33 @@ Handle<Value> GIRStruct::New(gpointer c_structure, GIStructInfo *info)
 }
 
 NAN_METHOD(GIRStruct::New) {
-    // Local<External> struct_info_extern = Local<External>::Cast(info.Data());
-    // GIStructInfo *struct_info = (GIStructInfo *)struct_info_extern->Value();
+    Local<External> struct_info_extern = Local<External>::Cast(info.Data());
+    GIStructInfo *struct_info = (GIStructInfo *)struct_info_extern->Value();
 
-    // GIFunctionInfo *func  = g_struct_info_find_method(struct_info, "new");
-    // if (func == nullptr) {
-    //     Nan::ThrowError("GIRStruct was unable to be constructed because there is no 'new' function!");
-    //     return;
-    // }
+    GIFunctionInfo *func  = g_struct_info_find_method(struct_info, "new");
+    if (func == nullptr) {
+        Nan::ThrowError("GIRStruct was unable to be constructed because there is no 'new' function!");
+        return;
+    }
 
-    // GIArgument retval;
-    // GITypeInfo *returned_type_info;
-    // gint returned_array_length;
-    // Func::CallAndGetPtr(nullptr, func, info, TRUE, &retval, &returned_type_info, &returned_array_length);
+    Nan::TryCatch exception_handler;
+    GIArgument retval = Func::CallNative(nullptr, func, info);
+    if (exception_handler.HasCaught()) {
+        exception_handler.ReThrow();
+        info.GetReturnValue().Set(Nan::Undefined());
+        return;
+    }
 
-    // if (returned_type_info != nullptr)
-    //     g_base_info_unref(returned_type_info);
+    GIRStruct *obj = new GIRStruct(struct_info);
 
-    // GIRStruct *obj = new GIRStruct(struct_info);
+    /* Set underlying C structure */
+    obj->c_structure = retval.v_pointer;
 
-    // /* Set underlying C structure */
-    // obj->c_structure = (gpointer) retval.v_pointer;
+    obj->Wrap(info.This());
+    GIRStruct::PushInstance(obj, info.This());
+    obj->info = struct_info;
 
-    // obj->Wrap(info.This());
-    // PushInstance(obj, info.This());
-    // obj->info = struct_info;
-
-    // info.GetReturnValue().Set(info.This());
+    info.GetReturnValue().Set(info.This());
 }
 
 GIFieldInfo *_find_structure_member(GIStructInfo *info, const gchar *name)
@@ -243,12 +243,11 @@ void GIRStruct::Initialize(Handle<Object> target, char *namespace_)
 
 void GIRStruct::PushInstance(GIRStruct *obj, Handle<Value> value)
 {
-    Local<Object> p_value = value->ToObject();
     obj->MakeWeak();
 
     StructData data;
     data.gir_structure = obj;
-    data.instance = p_value;
+    data.instance = PersistentValue(value->ToObject());
     instances.push_back(data);
 }
 
@@ -257,7 +256,7 @@ Handle<Value> GIRStruct::GetStructure(gpointer c_structure)
     std::vector<StructData>::iterator it;
     for (it = instances.begin(); it != instances.end(); it++) {
         if (it->gir_structure && it->gir_structure->c_structure && it->gir_structure->c_structure == c_structure) {
-            return it->instance;
+            return Nan::New(it->instance);
         }
     }
     return Nan::Null();

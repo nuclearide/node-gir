@@ -14,11 +14,9 @@ namespace gir {
 Args::Args(GICallableInfo *callable_info) {
     g_base_info_ref(callable_info);
     this->callable_info = callable_info;
-    this->return_type_info = g_callable_info_get_return_type(callable_info);
 }
 
 Args::~Args() {
-    g_base_info_unref(this->return_type_info);
     g_base_info_unref(this->callable_info);
 }
 
@@ -28,8 +26,6 @@ Args Args::Prepare(GICallableInfo *callable_info) {
 }
 
 void Args::loadJSArguments(const Nan::FunctionCallbackInfo<v8::Value> &js_callback_info) {
-    auto function_name = g_base_info_get_name(this->callable_info);
-
     // get the number of arguments the native function requires
     guint8 gi_argc = g_callable_info_get_n_args(this->callable_info);
 

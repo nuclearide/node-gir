@@ -13,6 +13,7 @@ using namespace v8;
 class GIRStruct;
 
 typedef Nan::Persistent<FunctionTemplate, CopyablePersistentTraits<FunctionTemplate>> PersistentFunctionTemplate;
+typedef Nan::Persistent<Value, CopyablePersistentTraits<Value>> PersistentValue;
 
 struct StructFunctionTemplate {
     char *type_name;
@@ -28,7 +29,7 @@ struct StructMarshalData {
 };
 
 struct StructData {
-    v8::Handle<v8::Value> instance;
+    PersistentValue instance;
     GIRStruct *gir_structure;
 };
 
