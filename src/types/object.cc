@@ -32,17 +32,34 @@ GIRObject::GIRObject(GIObjectInfo *object_info, map<string, GValue> &properties)
         this->obj = nullptr;
     }
     else {
-        vector<string> property_names = Util::extract_keys(properties);
-        vector<GValue> property_values = Util::extract_values(properties);
-        vector<const char *> property_names_cstr = Util::stringsToCStrings(property_names);
+        GType object_type = g_registered_type_info_get_g_type(this->info);
 
         // create the native object!
-        this->obj = g_object_new_with_properties(
-            g_registered_type_info_get_g_type(this->info),
-            properties.size(),
-            property_names_cstr.data(),
-            property_values.data()
-        );
+        #if GLIB_CHECK_VERSION(2,54,0)
+            vector<string> property_names = Util::extract_keys(properties);
+            vector<GValue> property_values = Util::extract_values(properties);
+            vector<const char *> property_names_cstr = Util::stringsToCStrings(property_names);
+            this->obj = g_object_new_with_properties(
+                object_type,
+                properties.size(),
+                property_names_cstr.data(),
+                property_values.data()
+            );
+        #else
+            vector<GParameter> parameters;
+            parameters.reserve(properties.size());
+            for (auto const &prop : properties) {
+                GParameter param;
+                param.name = prop.first.c_str();
+                param.value = prop.second;
+                parameters.push_back(param);
+            }
+            this->obj = G_OBJECT(g_object_newv(
+                object_type,
+                parameters.size(),
+                parameters.data()
+            ));
+        #endif
     }
 }
 
