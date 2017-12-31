@@ -71,8 +71,11 @@ NAN_METHOD(GIRStruct::New) {
         return;
     }
 
+    Args args = Args::Prepare(func);
+    args.loadJSArguments(info);
+
     Nan::TryCatch exception_handler;
-    GIArgument retval = Func::CallNative(nullptr, func, info);
+    GIArgument retval = Func::CallNative(func, args);
     if (exception_handler.HasCaught()) {
         exception_handler.ReThrow();
         info.GetReturnValue().Set(Nan::Undefined());

@@ -48,7 +48,7 @@ describe('functions', () => {
     test('functions can return an: object', function () {
       const window = new Gtk.Window();
       window.icon = pixbuf;
-      expect(typeof (window.icon)).toEqual('object');
+      expect(typeof(window.icon)).toEqual('object');
     });
 
     test('void functions return undefined', function () {
@@ -60,7 +60,16 @@ describe('functions', () => {
     test('functions can return an: array', function () {
       const gtype = GObject.typeFromName('GtkWindow');
       const gtypeArray = GObject.typeChildren(gtype);
+      expect(Array.isArray(gtypeArray)).toBe(true);
+      expect(typeof(gtypeArray.length)).toEqual('number');
       expect(gtypeArray.length).not.toEqual(0);
+    });
+
+    test('functions with out arguments should return an array', function() {
+      const button = new Gtk.Button();
+      const result = button.getPreferredSize();
+      expect(Array.isArray(result)).toBe(true);
+      expect(result.length).toEqual(2);
     });
   });
 });

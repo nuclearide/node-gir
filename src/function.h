@@ -4,6 +4,7 @@
 #include <nan.h>
 #include <glib.h>
 #include <girepository.h>
+#include "arguments.h"
 
 namespace gir {
 
@@ -11,8 +12,8 @@ using namespace v8;
 
 class Func {
   public:
-    static GIArgument CallNative(GObject *obj, GIFunctionInfo *info, const Nan::FunctionCallbackInfo<v8::Value>&args);
-    static v8::Local<v8::Value> Call(GObject *obj, GIFunctionInfo *info, const Nan::FunctionCallbackInfo<v8::Value>&args);
+    static GIArgument CallNative(GIFunctionInfo *function_info, Args &function_arguments);
+    static v8::Local<v8::Value> Call(GObject *obj, GIFunctionInfo *function_info, const Nan::FunctionCallbackInfo<v8::Value>&args);
 
     static Local<FunctionTemplate> CreateFunction(GIFunctionInfo *function_info);
     static Local<FunctionTemplate> CreateMethod(GIFunctionInfo *function_info);
