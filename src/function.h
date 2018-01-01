@@ -20,6 +20,9 @@ class Func {
 
     static NAN_METHOD(InvokeFunction);
     static NAN_METHOD(InvokeMethod);
+
+  private:
+    static Local<Value> JSReturnValueFromNativeCall(GIFunctionInfo *function_info, Args &args, GIArgument &native_call_result);
 };
 
 }
