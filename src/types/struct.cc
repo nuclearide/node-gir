@@ -71,7 +71,7 @@ NAN_METHOD(GIRStruct::New) {
         return;
     }
 
-    Args args = Args::Prepare(func);
+    Args args = Args(func);
     args.loadJSArguments(info);
 
     Nan::TryCatch exception_handler;

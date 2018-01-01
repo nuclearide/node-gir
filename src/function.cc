@@ -70,7 +70,7 @@ GIArgument Func::CallNative(GIFunctionInfo *function_info, Args &args) {
 
 Local<Value> Func::Call(GObject *obj, GIFunctionInfo *function_info, const Nan::FunctionCallbackInfo<v8::Value> &js_callback_info) {
     // create the arguments for the native function
-    Args args = Args::Prepare((GICallableInfo *)function_info);
+    Args args = Args(function_info);
     args.loadJSArguments(js_callback_info);
     if (g_callable_info_is_method(function_info)) {
         args.loadContext(obj);

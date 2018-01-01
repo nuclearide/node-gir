@@ -20,98 +20,118 @@ Args::~Args() {
     g_base_info_unref(this->callable_info);
 }
 
-Args Args::Prepare(GICallableInfo *callable_info) {
-    auto instance = Args(callable_info);
-    return instance;
-}
-
+/**
+ * This method, given a JS function call object will load each JS argument
+ * into Args datastructure (in and out arguments). Each JS argument value
+ * is converted to it's native equivalient. This method will also handle
+ * native "out" arguments even though they aren't passed in via JS function
+ * calls.
+ * @param js_callback_info is a JS function call info object
+ */
 void Args::loadJSArguments(const Nan::FunctionCallbackInfo<v8::Value> &js_callback_info) {
     // get the number of arguments the native function requires
     guint8 gi_argc = g_callable_info_get_n_args(this->callable_info);
 
-    // for every expected native argument, we will convert the corresponding
-    // JS argument to it.
+    // for every expected native argument, we'll take a given JS argument and convert
+    // it into a GIArgument, adding it to the in/out args array depending on it's direction.
     for (guint8 i = 0; i < gi_argc; i++) {
         GIArgInfo argument_info;
         g_callable_info_load_arg(this->callable_info, i, &argument_info);
         GIDirection argument_direction = g_arg_info_get_direction(&argument_info);
 
         if (argument_direction == GI_DIRECTION_IN) {
-            GIArgument argument = this->GetArgumentValue(js_callback_info[i], argument_info);
+            GIArgument argument = this->GetInArgumentValue(js_callback_info[i], argument_info);
             this->in.push_back(argument);
         }
 
         if (argument_direction == GI_DIRECTION_OUT) {
-            /*
-             * TODO: refactor this code so it's more understandable/readable.
-             * It should not complicate the reader's understanding of what "loadingJSArguments"
-             * does. The complexity of handling "g_arg_info_is_caller_allocates" etc
-             * needs to be handled in a seperate function/method.
-             */
-            if (g_arg_info_is_caller_allocates(&argument_info)) {
-                GITypeInfo argument_type_info;
-                g_arg_info_load_type(&argument_info, &argument_type_info);
-                GITypeTag argument_type_tag = g_type_info_get_tag(&argument_type_info);
-                if (argument_type_tag == GI_TYPE_TAG_INTERFACE) {
-                    GIBaseInfo *argument_interface_info = g_type_info_get_interface(&argument_type_info);
-                    GIInfoType argument_interface_type = g_base_info_get_type(argument_interface_info);
-                    gsize argument_size;
-
-                    if (argument_interface_type == GI_INFO_TYPE_STRUCT) {
-                        argument_size = g_struct_info_get_size((GIStructInfo*)argument_interface_info);
-                    } else if (argument_interface_type == GI_INFO_TYPE_UNION) {
-                        argument_size = g_union_info_get_size((GIUnionInfo*)argument_interface_info);
-                    } else {
-                        // TODO: FAIL WITH EXCEPTION
-                        // I dislike boolean return values that signal success/failure
-                        // but everyone seems to dislike c++ exceptions
-                        // how should a function like Args::loadJSArguments fail?
-                        fprintf(stderr, "TODO: FAILE WITH EXCEPTION");
-                    }
-
-                    g_base_info_unref(argument_interface_info);
-
-                    GArgument argument;
-                    // FIXME: who deallocates?
-                    // I imagine the original function caller (in JS land) will need
-                    // to use the structure that the native function puts into this
-                    // slice of memory, meaning we can't deallocate when Args is destroyed.
-                    // Perhaps we should research into GJS and PyGObject to understand
-                    // the problem of "out arguments with caller allocation" better.
-                    argument.v_pointer = g_slice_alloc0(argument_size);
-                    this->out.push_back(argument);
-
-                } else {
-                    // TODO: FAIL WITH EXCEPTION
-                    fprintf(stderr, "TODO: FAILE WITH EXCEPTION");
-                }
-            } else {
-                GIArgument argument;
-                argument.v_pointer = NULL;
-                this->out.push_back(argument);
-            }
+            // FIXME: we should not
+            GIArgument argument = this->GetOutArgumentValue(argument_info);
+            this->out.push_back(argument);
         }
 
         if (argument_direction == GI_DIRECTION_INOUT) {
-            GIArgument argument = this->GetArgumentValue(js_callback_info[i], argument_info);
+            GIArgument argument = this->GetInArgumentValue(js_callback_info[i], argument_info);
             this->in.push_back(argument);
+
+            // TODO: is it correct to handle INOUT arguments like IN args?
+            // do we need to handle callee (native) allocates or empty input GIArguments like we do with OUT args?
+            // i'm just assuming this is how it should work (treating it like an IN arg). Hopfully I can find
+            // some examples to make some test cases asserting the correct behaviour
             this->out.push_back(argument);
         }
     }
 }
 
+/**
+ * This function loads the context (i.e. this value of `this`) into the native call arguments.
+ * By convention, the context value (a GIRObject in JS or a GObject in native) is put at the
+ * start (position 0) of the function call's "in" arguments.
+ */
 void Args::loadContext(GObject *this_object) {
-    GIArgument this_object_argument;
-    this_object_argument.v_pointer = this_object;
+    GIArgument this_object_argument = {
+        .v_pointer = this_object,
+    };
     this->in.insert(this->in.begin(), this_object_argument);
 }
 
-GIArgument Args::GetArgumentValue(const Local<Value> &js_value, GIArgInfo &argument_info) {
+GIArgument Args::GetInArgumentValue(const Local<Value> &js_value, GIArgInfo &argument_info) {
     GITypeInfo argument_type_info;
     g_arg_info_load_type(&argument_info, &argument_type_info);
-    GArgument argument;
+    GIArgument argument;
     Args::ToGType(js_value, &argument, &argument_info, &argument_type_info, false);
     return argument;
+}
+
+
+GIArgument Args::GetOutArgumentValue(GIArgInfo &argument_info) {
+    GITypeInfo argument_type_info;
+    g_arg_info_load_type(&argument_info, &argument_type_info);
+    if (g_arg_info_is_caller_allocates(&argument_info)) {
+        // If the caller is responsible for allocating the out arguments memeory
+        // then we'll have to look up the argument's type infomation and allocate
+        // a slice of memory for the GIArgument's .v_pointer (native function will fill it up)
+        if (g_type_info_get_tag(&argument_type_info) == GI_TYPE_TAG_INTERFACE) {
+            GIBaseInfo *argument_interface_info = g_type_info_get_interface(&argument_type_info);
+            GIInfoType argument_interface_type = g_base_info_get_type(argument_interface_info);
+            gsize argument_size;
+
+            if (argument_interface_type == GI_INFO_TYPE_STRUCT) {
+                argument_size = g_struct_info_get_size((GIStructInfo*)argument_interface_info);
+            } else if (argument_interface_type == GI_INFO_TYPE_UNION) {
+                argument_size = g_union_info_get_size((GIUnionInfo*)argument_interface_info);
+            } else {
+                // TODO: FAIL WITH EXCEPTION
+                // I dislike boolean return values that signal success/failure
+                // but everyone seems to dislike c++ exceptions
+                // how should a function like Args::loadJSArguments fail?
+                fprintf(stderr, "TODO: FAILE WITH EXCEPTION");
+            }
+
+            g_base_info_unref(argument_interface_info);
+
+            GIArgument argument;
+            // FIXME: who deallocates?
+            // I imagine the original function caller (in JS land) will need
+            // to use the structure that the native function puts into this
+            // slice of memory, meaning we can't deallocate when Args is destroyed.
+            // Perhaps we should research into GJS and PyGObject to understand
+            // the problem of "out arguments with caller allocation" better.
+            argument.v_pointer = g_slice_alloc0(argument_size);
+            return argument;
+        } else {
+            // TODO: FAIL WITH EXCEPTION i forgot why :(
+            fprintf(stderr, "TODO: FAIL WITH EXCEPTION");
+        }
+    } else {
+        // else, if we're not responsible for allocation then we can just return an
+        // empty GIArgument with a NULL .v_pointer (native call will set it with a
+        // memory location)
+        GIArgument argument = {
+            .v_pointer = NULL
+        };
+        return argument;
+    }
 }
 
 
