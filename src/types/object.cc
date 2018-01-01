@@ -285,6 +285,7 @@ ObjectFunctionTemplate* GIRObject::CreateObjectTemplate(GIObjectInfo *object_inf
 
     int number_of_constants = g_object_info_get_n_constants(oft->info);
     for (int i = 0; i < number_of_constants; i++) {
+        // TODO: after loading various libraries there was never an object with constants :/
         GIConstantInfo *constant = g_object_info_get_constant(oft->info, i);
         object_template->Set(Nan::New(g_base_info_get_name(constant)).ToLocalChecked(), Nan::New(i)); // TODO: i'm fairly sure we shouldn't be setting just the index on the object, but rather the actual value of the constant?
         g_base_info_unref(constant);
