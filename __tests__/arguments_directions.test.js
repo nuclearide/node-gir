@@ -1,7 +1,12 @@
 const { load, Gtk } = require('../');
+
 var GdkPixbuf = load('GdkPixbuf');
 var GObject = load('GObject');
-var win = new Gtk.Window({ type: Gtk.WindowType.toplevel, title: "Node.JS GTK Window" });;
+
+var win = new Gtk.Window({
+  type: Gtk.WindowType.TOPLEVEL,
+  title: "Node.JS GTK Window"
+});
 
 describe('Arguments direction', function() {
 

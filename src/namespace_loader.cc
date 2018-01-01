@@ -4,6 +4,7 @@
 #include "types/object.h"
 #include "types/function_type.h"
 #include "types/struct.h"
+#include "types/enum.h"
 
 #include <string.h>
 
@@ -61,7 +62,7 @@ Handle<Value> NamespaceLoader::BuildClasses(char *namespace_) {
     int length = g_irepository_get_n_infos(repo, namespace_);
     for (int i = 0; i < length; i++) {
         GIBaseInfo *info = g_irepository_get_info(repo, namespace_, i);
-
+auto name = g_base_info_get_name(info);
         switch(g_base_info_get_type(info)) {
             case GI_INFO_TYPE_BOXED:
                 //FIXME: GIStructInfo or GIUnionInfo
@@ -69,10 +70,10 @@ Handle<Value> NamespaceLoader::BuildClasses(char *namespace_) {
                 exported_value = GIRStruct::Prepare((GIStructInfo*)info);
                 break;
             case GI_INFO_TYPE_ENUM:
-                ParseEnum((GIEnumInfo*)info, module);
+                exported_value = GIREnum::Prepare((GIEnumInfo*)info);
                 break;
             case GI_INFO_TYPE_FLAGS:
-                ParseFlags((GIEnumInfo*)info, module);
+                exported_value = GIREnum::Prepare((GIEnumInfo*)info);
                 break;
             case GI_INFO_TYPE_OBJECT:
                 exported_value = GIRObject::Prepare((GIObjectInfo*)info);
@@ -118,29 +119,6 @@ Handle<Value> NamespaceLoader::BuildClasses(char *namespace_) {
 
 void NamespaceLoader::ParseStruct(GIStructInfo *info, Handle<Object> &exports) {
 
-}
-
-void NamespaceLoader::ParseEnum(GIEnumInfo *info, Handle<Object> &exports) {
-    Handle<Object> obj = Nan::New<Object>();
-
-    int length = g_enum_info_get_n_values(info);
-    for(int i=0; i<length; i++) {
-        GIValueInfo *value = g_enum_info_get_value(info, i);
-        Nan::Set(obj, Nan::New(g_base_info_get_name(value)).ToLocalChecked(), Nan::New<Number>(g_value_info_get_value(value)));
-    	g_base_info_unref(value);
-    }
-    Nan::Set(exports, Nan::New(g_base_info_get_name(info)).ToLocalChecked(), obj);
-}
-
-void NamespaceLoader::ParseFlags(GIEnumInfo *info, Handle<Object> &exports) {
-    Handle<Object> obj = Nan::New<Object>();
-
-    int length = g_enum_info_get_n_values(info);
-    for(int i=0; i<length; i++) {
-        GIValueInfo *value = g_enum_info_get_value(info, i);
-        Nan::Set(obj, Nan::New(g_base_info_get_name(value)).ToLocalChecked(), Nan::New(i));
-    }
-    Nan::Set(exports, Nan::New(g_base_info_get_name(info)).ToLocalChecked(), obj);
 }
 
 void NamespaceLoader::ParseInterface(GIInterfaceInfo *info, Handle<Object> &exports) {

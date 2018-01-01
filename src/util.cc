@@ -4,6 +4,7 @@
 #include <stdarg.h>
 #include <regex>
 #include <cctype>
+#include <algorithm>
 
 using namespace std;
 
@@ -85,6 +86,15 @@ string toSnakeCase(const string input) {
     }
   }
   return output;
+}
+
+/**
+ * modifies the input string
+ */
+void toUpperCase(string &input) {
+  transform(input.begin(), input.end(), input.begin(), [](unsigned char character) {
+    return toupper(character);
+  });
 }
 
 vector<const char *> stringsToCStrings(vector<string> &string_vector) {

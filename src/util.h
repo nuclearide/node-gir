@@ -17,6 +17,7 @@ namespace Util {
     gchar *utf8StringFromValue(v8::Handle<v8::Value> value);
     string toCamelCase(const string input);
     string toSnakeCase(const string input);
+    void toUpperCase(string &input);
 
     /**
      * this uses the same underlying values as the string_vector

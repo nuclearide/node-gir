@@ -12,6 +12,7 @@
                 'src/types/object.cc',
                 'src/types/struct.cc',
                 'src/types/function_type.cc',
+                'src/types/enum.cc',
                 'src/loop.cc',
                 'src/signal_closure.cc'
             ],
