@@ -125,15 +125,29 @@ Local<Value> Func::JSReturnValueFromNativeCall(GIFunctionInfo *function_info, Ar
         js_result_array->Set(0, js_return_value);
     }
 
-    // for each out argument, convert it to JS and set it in the return array
-    // if we don't have any out args, this loop doesn't need to do anything
-    for (int i = 0; i < args.out.size(); i++) {
-        GIArgInfo out_arg_info;
-        g_callable_info_load_arg(function_info, i, &out_arg_info); // FIXME: this will will fail if there are also IN_ARGS due to incorrect indexing!!!.
-        GITypeInfo out_arg_type_info;
-        g_arg_info_load_type(&out_arg_info, &out_arg_type_info);
-        int position = i + (skip_return_value ? 0 : 1); // if there is a return_value then we need to offset the out args by 1 i.e. [return_value, out-arg-1, out-arg-2, ...]
-        js_result_array->Set(position, Args::FromGType(&args.out[i], &out_arg_type_info, 0));
+    // We need to handle OUT arguments from the native call.
+    // If we had some out args then
+    // foreach native argument, if it's an our arg, grab the next out arg from args
+    // and add it to the next position in the js_result_array.
+    // The code here is a bit confusing because `g_callable_info_load_arg(info, index)`
+    // requires the argument index where the index is relative to ALL arguments
+    // where as args.out.data() is an array of just the OUT args (doesn't include IN args)
+    // so we can't just loop over args.out :(
+    int js_results_array_pos = skip_return_value ? 0 : 1; // if there is a return_value then we need to offset the out args by 1 i.e. [return_value, out-arg-1, out-arg-2, ...]
+    int next_out_arg_pos = 0;
+    if (args.out.size() > 0) {
+        for (int i = 0; i < g_callable_info_get_n_args(function_info); i++) {
+            GIArgInfo argument_info;
+            g_callable_info_load_arg(function_info, i, &argument_info);
+            GIDirection argument_direction = g_arg_info_get_direction(&argument_info);
+            if (argument_direction == GI_DIRECTION_OUT) {
+                GITypeInfo out_arg_type_info;
+                g_arg_info_load_type(&argument_info, &out_arg_type_info);
+                js_result_array->Set(js_results_array_pos, Args::FromGType(&args.out[next_out_arg_pos], &out_arg_type_info, 0));
+                next_out_arg_pos += 1;
+                js_results_array_pos += 1;
+            }
+        }
     }
 
     // based on the number of return values from the native function call we'll decide what to send back to JS
