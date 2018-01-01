@@ -62,7 +62,7 @@ Handle<Value> NamespaceLoader::BuildClasses(char *namespace_) {
     int length = g_irepository_get_n_infos(repo, namespace_);
     for (int i = 0; i < length; i++) {
         GIBaseInfo *info = g_irepository_get_info(repo, namespace_, i);
-auto name = g_base_info_get_name(info);
+
         switch(g_base_info_get_type(info)) {
             case GI_INFO_TYPE_BOXED:
                 //FIXME: GIStructInfo or GIUnionInfo
