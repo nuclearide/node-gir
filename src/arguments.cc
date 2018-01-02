@@ -3,21 +3,18 @@
 #include "values.h"
 
 #include "types/object.h"
+#include "exceptions.h"
 #include <string.h>
-
 #include <vector>
+#include <sstream>
+
 
 using namespace v8;
 
 namespace gir {
 
-Args::Args(GICallableInfo *callable_info) {
-    g_base_info_ref(callable_info);
-    this->callable_info = callable_info;
-}
-
-Args::~Args() {
-    g_base_info_unref(this->callable_info);
+Args::Args(GICallableInfo *callable_info): callable_info(callable_info, g_base_info_unref) {
+    g_base_info_ref(callable_info); // because we keep a reference to the info we need to tell glib
 }
 
 /**
@@ -30,13 +27,13 @@ Args::~Args() {
  */
 void Args::loadJSArguments(const Nan::FunctionCallbackInfo<v8::Value> &js_callback_info) {
     // get the number of arguments the native function requires
-    guint8 gi_argc = g_callable_info_get_n_args(this->callable_info);
+    guint8 gi_argc = g_callable_info_get_n_args(this->callable_info.get());
 
     // for every expected native argument, we'll take a given JS argument and convert
     // it into a GIArgument, adding it to the in/out args array depending on it's direction.
     for (guint8 i = 0; i < gi_argc; i++) {
         GIArgInfo argument_info;
-        g_callable_info_load_arg(this->callable_info, i, &argument_info);
+        g_callable_info_load_arg(this->callable_info.get(), i, &argument_info);
         GIDirection argument_direction = g_arg_info_get_direction(&argument_info);
 
         if (argument_direction == GI_DIRECTION_IN) {
@@ -45,7 +42,6 @@ void Args::loadJSArguments(const Nan::FunctionCallbackInfo<v8::Value> &js_callba
         }
 
         if (argument_direction == GI_DIRECTION_OUT) {
-            // FIXME: we should not
             GIArgument argument = this->GetOutArgumentValue(argument_info);
             this->out.push_back(argument);
         }
@@ -83,32 +79,29 @@ GIArgument Args::GetInArgumentValue(const Local<Value> &js_value, GIArgInfo &arg
     return argument;
 }
 
-
 GIArgument Args::GetOutArgumentValue(GIArgInfo &argument_info) {
     GITypeInfo argument_type_info;
     g_arg_info_load_type(&argument_info, &argument_type_info);
     if (g_arg_info_is_caller_allocates(&argument_info)) {
+        GITypeTag arg_type_tag = g_type_info_get_tag(&argument_type_info);
         // If the caller is responsible for allocating the out arguments memeory
         // then we'll have to look up the argument's type infomation and allocate
         // a slice of memory for the GIArgument's .v_pointer (native function will fill it up)
-        if (g_type_info_get_tag(&argument_type_info) == GI_TYPE_TAG_INTERFACE) {
-            GIBaseInfo *argument_interface_info = g_type_info_get_interface(&argument_type_info);
-            GIInfoType argument_interface_type = g_base_info_get_type(argument_interface_info);
+        if (arg_type_tag == GI_TYPE_TAG_INTERFACE) {
+            GIRInfoUniquePtr argument_interface_info = GIRInfoUniquePtr(g_type_info_get_interface(&argument_type_info));
+            GIInfoType argument_interface_type = g_base_info_get_type(argument_interface_info.get());
             gsize argument_size;
 
             if (argument_interface_type == GI_INFO_TYPE_STRUCT) {
-                argument_size = g_struct_info_get_size((GIStructInfo*)argument_interface_info);
+                argument_size = g_struct_info_get_size((GIStructInfo*)argument_interface_info.get());
             } else if (argument_interface_type == GI_INFO_TYPE_UNION) {
-                argument_size = g_union_info_get_size((GIUnionInfo*)argument_interface_info);
+                argument_size = g_union_info_get_size((GIUnionInfo*)argument_interface_info.get());
             } else {
-                // TODO: FAIL WITH EXCEPTION
-                // I dislike boolean return values that signal success/failure
-                // but everyone seems to dislike c++ exceptions
-                // how should a function like Args::loadJSArguments fail?
-                fprintf(stderr, "TODO: FAILE WITH EXCEPTION");
+                stringstream message;
+                message << "Unsupported type \"" << g_type_tag_to_string(arg_type_tag) << "\" for out caller-allocates";
+                message << " Expected a struct or union.";
+                throw UnsupportedGIType(message.str());
             }
-
-            g_base_info_unref(argument_interface_info);
 
             GIArgument argument;
             // FIXME: who deallocates?
@@ -117,21 +110,32 @@ GIArgument Args::GetOutArgumentValue(GIArgInfo &argument_info) {
             // slice of memory, meaning we can't deallocate when Args is destroyed.
             // Perhaps we should research into GJS and PyGObject to understand
             // the problem of "out arguments with caller allocation" better.
+            // Some thoughts:
+            // 1. if the data is **copied** into a gir object/struct when passed back
+            //    to JS then we can safely implement a custom deleter for Args.out
+            //    that cleans this up.
+            // 2. if the pointer to the data is passed to a gir object/struct when
+            //    passed back to JS then that JS object should own it and be responsible
+            //    for cleaning it up.
+            // * both choices have caveats so it's worth understanding the implications
+            //   of each, or other options to solve this leak!
+            // * from reading GJS code, it seems like they copy the data before passing
+            // * to JS meaning option 1.
             argument.v_pointer = g_slice_alloc0(argument_size);
             return argument;
         } else {
-            // TODO: FAIL WITH EXCEPTION i forgot why :(
-            fprintf(stderr, "TODO: FAIL WITH EXCEPTION");
+            stringstream message;
+            message << "Unsupported type \"" << g_type_tag_to_string(arg_type_tag) << "\" for out caller-allocates";
+            throw UnsupportedGIType(message.str());
         }
-    } else {
-        // else, if we're not responsible for allocation then we can just return an
-        // empty GIArgument with a NULL .v_pointer (native call will set it with a
-        // memory location)
-        GIArgument argument = {
-            .v_pointer = NULL
-        };
-        return argument;
     }
+    // else, if we're not responsible for allocation then we can just return an
+    // empty GIArgument with a NULL .v_pointer (native call will set it with a
+    // memory location)
+    GIArgument argument = {
+        .v_pointer = NULL
+    };
+    return argument;
 }
 
 

@@ -3,6 +3,7 @@
 
 #include <v8.h>
 #include <glib.h>
+#include <girepository.h>
 #include <string>
 #include <vector>
 #include <map>
@@ -12,6 +13,23 @@ using namespace std;
 extern "C" void debug_printf(const char *fmt, ...);
 
 namespace gir {
+
+
+struct GIBaseInfoDeleter {
+    void operator()(GIBaseInfo *info) const;
+};
+
+/**
+ * This alias allows for a more readable way of wrapping a GIBaseInfo pointer
+ * or some derivative (GICallableInfo, etc) in a std::unique_ptr with a custom
+ * deleter that calls `g_base_info_unref`.
+ * @example
+ * // this
+ * unique_ptr<GIBaseInfo, void(*)(GIBaseInfo *)> argument_interface_info = unique_ptr<GIBaseInfo, void(*)(GIBaseInfo *)>(g_type_info_get_interface(&argument_type_info));
+ * // becomes
+ * GIRInfoUniquePtr argument_interface_info = GIRInfoUniquePtr(g_type_info_get_interface(&argument_type_info));
+ */
+using GIRInfoUniquePtr = unique_ptr<GIBaseInfo, GIBaseInfoDeleter>;
 
 namespace Util {
     gchar *utf8StringFromValue(v8::Handle<v8::Value> value);

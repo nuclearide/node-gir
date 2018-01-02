@@ -39,6 +39,12 @@
             'cflags': [
                 '-std=c++11',
                 '-g'
+            ],
+            'cflags!': [
+                '-fno-exceptions'
+            ],
+            'cflags_cc!': [
+                '-fno-exceptions'
             ]
         }
     ]

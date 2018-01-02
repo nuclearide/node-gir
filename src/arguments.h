@@ -15,16 +15,14 @@ class Args {
   public:
     vector<GIArgument> in;
     vector<GIArgument> out;
-    GITypeInfo *return_type_info;
 
     Args(GICallableInfo *callable_info);
-    ~Args();
 
     void loadJSArguments(const Nan::FunctionCallbackInfo<v8::Value> &js_callback_info);
     void loadContext(GObject *this_object);
 
   private:
-    GICallableInfo *callable_info = nullptr;
+    unique_ptr<GICallableInfo, void(*)(GICallableInfo*)> callable_info;
     GIArgument GetInArgumentValue(const Local<Value> &js_value, GIArgInfo &argument_info);
     GIArgument GetOutArgumentValue(GIArgInfo &argument_info);
 

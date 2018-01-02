@@ -42,7 +42,17 @@ vector<string> split_string(const string &text, const regex &re, bool include_fu
 }
 
 namespace gir {
+
+
+void GIBaseInfoDeleter::operator()(GIBaseInfo *info) const {
+    if (info) {
+        g_base_info_unref(info);
+    }
+}
+
+
 namespace Util {
+
 
 gchar *utf8StringFromValue(v8::Handle<v8::Value> value) {
   v8::Local<v8::String> str = value->ToString();
