@@ -72,4 +72,11 @@ describe('functions', () => {
       expect(result.length).toEqual(2);
     });
   });
+
+  describe('functions throw errors', () => {
+    test('TypeError is thrown when passing an invalid argument type', () => {
+      const window = new Gtk.Window();
+      expect(() => window.setTitle(['an', 'array'])).toThrow();
+    });
+  });
 });

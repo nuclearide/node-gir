@@ -93,6 +93,8 @@ Handle<Value> GIRValue::FromGValue(GValue *v, GIBaseInfo *base_info) {
     return value;
 }
 
+// TODO: refactor to follow the style that Args::ToGType does
+// i.e. return a GValue and throw std::exceptions on failure
 bool GIRValue::ToGValue(Handle<Value> value, GType type, GValue *v) {
     if(type == G_TYPE_INVALID || type == 0) {
         type = GIRValue::GuessType(value);

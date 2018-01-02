@@ -1,5 +1,6 @@
 #include "function.h"
 #include "util.h"
+#include "exceptions.h"
 #include <nan.h>
 #include <vector>
 
@@ -49,6 +50,7 @@ NAN_METHOD(Func::InvokeMethod) {
 GIArgument Func::CallNative(GIFunctionInfo *function_info, Args &args) {
     GIArgument return_value;
     GError *error = nullptr;
+
     g_function_info_invoke(
         function_info,
         args.in.data(),
@@ -60,40 +62,38 @@ GIArgument Func::CallNative(GIFunctionInfo *function_info, Args &args) {
     );
 
     if (error != nullptr) {
-        // FIXME: we need a better way to handle errors.
-        Nan::ThrowError(Nan::New(error->message).ToLocalChecked());
+        string message = string(error->message);
         g_error_free(error);
+        throw NativeGError(message); // FIXME: we might leak here if the native function allocated memory inside return_value and gave us ownership.
     }
 
     return return_value;
 }
 
 Local<Value> Func::Call(GObject *obj, GIFunctionInfo *function_info, const Nan::FunctionCallbackInfo<v8::Value> &js_callback_info) {
-    // create the arguments for the native function
-    Args args = Args(function_info);
-    args.loadJSArguments(js_callback_info);
-    if (g_callable_info_is_method(function_info)) {
-        args.loadContext(obj);
-    }
+    // we want to catch any errors we may encounter so we can throw them as JS errors
+    try {
+        // create the arguments for the native function
+        Args args = Args(function_info);
+        args.loadJSArguments(js_callback_info);
+        if (g_callable_info_is_method(function_info)) {
+            args.loadContext(obj);
+        }
 
-    // call the native function and handle errors
-    // FIXME: CallNative throwing JS errors doesn't really make sence
-    // I'm still learning c++ best practices and i'm not sure how exceptions
-    // or failures should be handled. People online seem to say
-    // not to use c++ exceptions but I'm not sure what to do :/
-    Nan::TryCatch exception_handler;
-    GIArgument result = Func::CallNative(function_info, args);
-    if (exception_handler.HasCaught()) {
-        exception_handler.ReThrow();
+        // call the native function. CallNative is just a small wrapper to help with
+        // handling native errors and return values.
+        GIArgument result = Func::CallNative(function_info, args);
+
+        // handle the return value that we should pass back to JS.
+        // there are some rules to decide how to handle there output from the native function
+        // so we'll use a helper function to handle that logic for us.
+        Local<Value> js_return_value = Func::JSReturnValueFromNativeCall(function_info, args, result);
+        return js_return_value;
+    } catch (exception &error) {
+        // if any exception happens we want to translate it to a JS error and return undefined.
+        Nan::ThrowError(error.what());
         return Nan::Undefined();
     }
-
-    // handle the return value that we should pass back to JS.
-    // there are some rules to decide how to handle there output from the native function
-    // so we'll use a helper function to handle that logic for us.
-    Local<Value> js_return_value = Func::JSReturnValueFromNativeCall(function_info, args, result);
-
-    return js_return_value;
 }
 
 /**

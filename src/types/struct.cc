@@ -151,44 +151,35 @@ NAN_PROPERTY_QUERY(FieldQueryHandler)
 
 NAN_PROPERTY_SETTER(FieldSetHandler)
 {
-    String::Utf8Value _name(property);
+    String::Utf8Value property_name(property);
 
-    v8::Handle<v8::External> info_ptr = v8::Handle<v8::External>::Cast(info.Data());
-    GIBaseInfo *base_info  = (GIBaseInfo*) info_ptr->Value();
-    GIFieldInfo *field_info = nullptr;
-    if (base_info != nullptr)
-        field_info = _find_structure_member(base_info, *_name);
+    Local<External> info_ptr = Local<External>::Cast(info.Data());
+    GIBaseInfo *base_info  = (GIBaseInfo *)info_ptr->Value();
+    GIRInfoUniquePtr field_info(nullptr);
 
-    if (field_info) {
-        if (!(g_field_info_get_flags(field_info) & GI_FIELD_IS_WRITABLE)) {
-            // field is not writable
+    if (base_info != nullptr) {
+        field_info = GIRInfoUniquePtr(_find_structure_member(base_info, *property_name));
+    }
+
+    if (field_info != nullptr) {
+        if (!(g_field_info_get_flags(field_info.get()) & GI_FIELD_IS_WRITABLE)) {
             Nan::ThrowError("member is not writable");
+            return;
         }
-
         GIRStruct *that = Nan::ObjectWrap::Unwrap<GIRStruct>(info.This()->ToObject());
-        debug_printf("SetHandler [%p] (Set structure member) '%s.%s' \n", that->c_structure, g_base_info_get_name(base_info), *_name);
-        GIArgument arg = {0, };
-        Handle<Value> res;
-        GITypeInfo *type_info = g_field_info_get_type(field_info);
-        // FIXME, add TypeInfo argument when ArgInfo is nullptr
-        bool is_set = Args::ToGType(value, &arg, nullptr, type_info, false);
-        if (g_field_info_set_field(field_info, that->c_structure, &arg) == false) {
-            Nan::ThrowError("Failed to set structure's field");
+        GIRInfoUniquePtr type_info = GIRInfoUniquePtr(g_field_info_get_type(field_info.get()));
+        GIArgument argument = Args::ToGType(*type_info, value);
+        if (g_field_info_set_field(field_info.get(), that->c_structure, &argument) == false) {
+            Nan::ThrowError("Failed to set property");
+            return;
         }
 
-        /*GIArgument ar = {0, };
-        if (g_field_info_get_field(field_info, that->c_structure, &ar) == TRUE) {
-            Handle<Value> ret = Args::FromGType(&arg, type_info, -1);
-        } */
-        // TODO, free arg.v_string
-        g_base_info_unref(type_info);
-        g_base_info_unref(field_info);
-
-        info.GetReturnValue().Set(Nan::New<v8::Boolean>(is_set));
+        return;
     }
 
     // Fallback to defaults
-    info.GetReturnValue().Set(Nan::New<v8::Boolean>(info.This()->GetPrototype()->ToObject()->Set(property, value)));
+    info.This()->GetPrototype()->ToObject()->Set(property, value);
+    return;
 }
 
 Local<Value> GIRStruct::Prepare(GIStructInfo *info) {
