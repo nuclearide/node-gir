@@ -45,7 +45,7 @@ class GIRStruct : public Nan::ObjectWrap {
     static std::vector<StructData> instances;
     static std::vector<StructFunctionTemplate> templates;
 
-    static v8::Handle<v8::Value> New(gpointer c_structure, GIStructInfo *info);
+    static v8::Handle<v8::Value> FromExisting(gpointer c_structure, GIStructInfo *info);
     static NAN_METHOD(New);
 
     static Local<Value> Prepare(GIStructInfo *info);

@@ -25,7 +25,7 @@ GIRStruct::GIRStruct(GIStructInfo *info)
     //c_structure = g_try_malloc0(g_struct_info_get_size ((GIStructInfo*)info));
 }
 
-Handle<Value> GIRStruct::New(gpointer c_structure, GIStructInfo *info)
+Handle<Value> GIRStruct::FromExisting(gpointer c_structure, GIStructInfo *info)
 {
     Handle<Value> res = GetStructure(c_structure);
     if (res != Nan::Null()) {

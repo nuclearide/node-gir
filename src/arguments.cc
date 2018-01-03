@@ -380,7 +380,7 @@ Handle<Value> Args::FromGTypeArray(GIArgument *arg, GITypeInfo *type, int array_
             interface_info = g_type_info_get_interface(param_info);
             for (i = 0; i < array_length; i++) {
                 GObject *o = (GObject*)((gpointer*)arg->v_pointer)[i];
-                arr->Set(i, GIRObject::New(o, g_registered_type_info_get_g_type(interface_info)));
+                arr->Set(i, GIRObject::FromExisting(o, g_registered_type_info_get_g_type(interface_info)));
             }
             g_base_info_unref(interface_info);
             return arr;
@@ -403,7 +403,7 @@ Local<Value> Args::FromGType(GIArgument *arg, GITypeInfo *type, int array_length
         GIInfoType interface_type = g_base_info_get_type(interface_info);
 
         if (interface_type == GI_INFO_TYPE_OBJECT) {
-            Local<Value> new_instance = GIRObject::New(G_OBJECT(arg->v_pointer), g_registered_type_info_get_g_type(interface_info));
+            Local<Value> new_instance = GIRObject::FromExisting(G_OBJECT(arg->v_pointer), g_registered_type_info_get_g_type(interface_info));
             g_base_info_unref(interface_info);
             return new_instance;
         }
@@ -436,7 +436,7 @@ Local<Value> Args::FromGType(GIArgument *arg, GITypeInfo *type, int array_length
 
         if (g_type_is_a(gtype, G_TYPE_OBJECT)) {
             GObject *o = G_OBJECT(arg->v_pointer);
-            return GIRObject::New(o, G_OBJECT_TYPE(o));
+            return GIRObject::FromExisting(o, G_OBJECT_TYPE(o));
         }
         if (g_type_is_a(gtype, G_TYPE_VALUE)) {
             GIRValue::FromGValue((GValue*)arg->v_pointer, nullptr);

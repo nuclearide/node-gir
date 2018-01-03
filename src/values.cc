@@ -79,12 +79,12 @@ Handle<Value> GIRValue::FromGValue(GValue *v, GIBaseInfo *base_info) {
                 if (base_info == NULL)
                     Nan::ThrowError("GIRValue - missed base_info for boxed type");
                 boxed_info = g_irepository_find_by_gtype(NamespaceLoader::repo, G_VALUE_TYPE(v));
-                return GIRStruct::New((GIRStruct*)g_value_get_boxed(v), boxed_info);
+                return GIRStruct::FromExisting((GIRStruct*)g_value_get_boxed(v), boxed_info);
             }
             break;
 
         case G_TYPE_OBJECT:
-            return GIRObject::New(G_OBJECT(g_value_get_object(v)), type);
+            return GIRObject::FromExisting(G_OBJECT(g_value_get_object(v)), type);
 
         default:
             Nan::ThrowError("GIRValue - conversion of '%s' type not supported");

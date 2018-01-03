@@ -77,7 +77,7 @@ GIObjectInfo * _get_object_info(GType obj_type, GIObjectInfo *info) {
     return tmp_info;
 }
 
-Local<Value> GIRObject::New(GObject *existing_gobject, GType gobject_type) {
+Local<Value> GIRObject::FromExisting(GObject *existing_gobject, GType gobject_type) {
     // sanity check our parameters
     if (existing_gobject == nullptr || !G_IS_OBJECT(existing_gobject)) {
         return Nan::Null();
