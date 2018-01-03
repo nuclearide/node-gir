@@ -37,8 +37,10 @@ GIRObject::GIRObject(GIObjectInfo *object_info, map<string, GValue> &properties)
         vector<string> property_names = Util::extract_keys(properties);
         vector<GValue> property_values = Util::extract_values(properties);
         vector<const char *> property_names_cstr = Util::stringsToCStrings(property_names);
-        this->obj = g_object_new_with_properties(
-            object_type, properties.size(), property_names_cstr.data(), property_values.data());
+        this->obj = g_object_new_with_properties(object_type,
+                                                 properties.size(),
+                                                 property_names_cstr.data(),
+                                                 property_values.data());
 #else
         vector<GParameter> parameters;
         parameters.reserve(properties.size());
@@ -112,7 +114,8 @@ NAN_METHOD(GIRObject::New) {
     GIObjectInfo *object_info = (GIObjectInfo *)object_info_extern->Value();
 
     if (object_info == nullptr) {
-        Nan::ThrowError("no type information available for object constructor! this is likely a bug with node-gir!");
+        Nan::ThrowError("no type information available for object constructor! this is likely a "
+                        "bug with node-gir!");
         return;
     }
 
@@ -414,8 +417,11 @@ NAN_METHOD(GIRObject::Connect) {
     }
 
     // connect the closure to the signal using the signal_id and detail we've already found
-    gulong handle_id = g_signal_connect_closure_by_id(
-        self->obj, signal_id, detail, closure, FALSE); // TODO: support connecting with after=TRUE
+    gulong handle_id = g_signal_connect_closure_by_id(self->obj,
+                                                      signal_id,
+                                                      detail,
+                                                      closure,
+                                                      FALSE); // TODO: support connecting with after=TRUE
 
     // return the signal connection ID back to JS.
     info.GetReturnValue().Set(Nan::New((uint32_t)handle_id));

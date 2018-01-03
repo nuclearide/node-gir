@@ -18,9 +18,7 @@ public:
 
     Args(GICallableInfo *callable_info);
 
-    void load_js_arguments(
-
-        const Nan::FunctionCallbackInfo<Value> &js_callback_info);
+    void load_js_arguments(const Nan::FunctionCallbackInfo<Value> &js_callback_info);
     void load_context(GObject *this_object);
 
 private:

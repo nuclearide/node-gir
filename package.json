@@ -22,10 +22,11 @@
   ],
   "main": "src/index.js",
   "scripts": {
-    "build": "cmake-js configure && cmake-js build",
-    "build:debug": "cmake-js configure --debug && cmake-js build --debug",
+    "build": "node-gyp configure && node-gyp build",
+    "build:debug": "node-gyp configure --debug && node-gyp build --debug",
     "clean": "rm -rf ./build || true",
-    "test": "jest"
+    "test": "jest",
+    "lint": "clang-format -i -style=file ./src/*.{h,cc} ./src/**/*.{h,cc}"
   },
   "directories": {
     "lib": "."

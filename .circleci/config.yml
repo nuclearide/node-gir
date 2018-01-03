@@ -25,6 +25,14 @@ jobs:
       - image: node:6-stretch
     steps: *test_steps
 
+  lint:
+    docker:
+      - image: ubuntu
+    steps:
+      - checkout
+      - run: apt-get update
+      - run: apt-get install -y cmake clang-format
+
 workflows:
   version: 2
   build_and_test:

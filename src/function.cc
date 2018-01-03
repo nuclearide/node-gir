@@ -51,8 +51,13 @@ GIArgument Func::call_native(GIFunctionInfo *function_info, Args &args) {
     GIArgument return_value;
     GError *error = nullptr;
 
-    g_function_info_invoke(
-        function_info, args.in.data(), args.in.size(), args.out.data(), args.out.size(), &return_value, &error);
+    g_function_info_invoke(function_info,
+                           args.in.data(),
+                           args.in.size(),
+                           args.out.data(),
+                           args.out.size(),
+                           &return_value,
+                           &error);
 
     if (error != nullptr) {
         string message = string(error->message);

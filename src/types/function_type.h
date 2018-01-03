@@ -10,13 +10,9 @@ namespace gir {
 
 class GIRFunction : public Nan::ObjectWrap {
 public:
-    GIRFunction(){};
+    GIRFunction() = default;
 
     static void initialize(v8::Handle<v8::Object> target, GIObjectInfo *info);
-    static NAN_METHOD(Execute);
-    static char *to_camel_case(const char *str);
-
-private:
 };
 
 } // namespace gir
