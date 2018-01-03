@@ -42,3 +42,16 @@ if (CLANG_FORMAT)
     ${HEADER_FILES}
   )
 endif()
+
+# Adding clang-tidy target if executable is found
+find_program(CLANG_TIDY "clang-tidy")
+if(CLANG_TIDY)
+  add_custom_target(
+    clang-tidy
+    COMMAND /usr/bin/clang-tidy
+    -config=''
+    -p='build'
+    -fix
+    ${SOURCE_FILES}
+  )
+endif()

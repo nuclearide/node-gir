@@ -1,0 +1,8 @@
+---
+Checks: 'clang-diagnostic-*,clang-analyzer-*,modernize-use-nullptr,modernize-deprecated-headers,modernize-loop-convert,modernize-pass-by-value,modernize-redundant-void-arg,modernize-use-bool-literals,modernize-use-default,modernize-use-emplace,modernize-use-using'
+WarningsAsErrors: ''
+HeaderFilterRegex: 'src/.*'
+AnalyzeTemporaryDtors: false
+FormatStyle: google
+User: james
+...
