@@ -9,7 +9,7 @@
 
 #include <nan.h>
 #include <node.h>
-#include <string.h>
+#include <cstring>
 
 using namespace v8;
 using namespace std;
@@ -216,9 +216,8 @@ Local<Value> GIRStruct::prepare(GIStructInfo *info) {
     // Create external to hold GIBaseInfo and set it
     v8::Handle<v8::External> info_handle = Nan::New<v8::External>((void *)g_base_info_ref(info));
     // Set fields handlers
-    SetNamedPropertyHandler(object_instance_template, FieldGetHandler,
-                            FieldSetHandler, FieldQueryHandler, nullptr,
-                            nullptr, info_handle);
+    SetNamedPropertyHandler(
+        object_instance_template, FieldGetHandler, FieldSetHandler, FieldQueryHandler, nullptr, nullptr, info_handle);
 
     register_methods(info, namespace_, object_template);
 

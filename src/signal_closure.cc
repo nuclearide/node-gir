@@ -60,7 +60,7 @@ static void gir_signal_closure_marshal(GClosure *closure,
     if (maybe_result.IsEmpty() || maybe_result.ToLocalChecked()->IsNull() ||
         maybe_result.ToLocalChecked()->IsUndefined()) {
         // we don't have a return value
-        return_value = nullptr;  // set the signal return value to NULL
+        return_value = nullptr; // set the signal return value to NULL
         return;
     } else {
         // we have a return value
@@ -99,7 +99,7 @@ GISignalInfo *gir_get_signal(GType signal_g_type, const char *signal_name) {
     GIRepository *repository = g_irepository_get_default();
     GIBaseInfo *target_info = g_irepository_find_by_gtype(repository, signal_g_type);
     if (!target_info) {
-      return nullptr;
+        return nullptr;
     }
     GISignalInfo *signal_info = nullptr;
     if (GI_IS_OBJECT_INFO(target_info)) {
@@ -125,7 +125,7 @@ GClosure *GIRSignalClosure::create(GIRObject *instance,
                                    Local<Function> callback) {
     GISignalInfo *signal_info = gir_get_signal(signal_g_type, signal_name);
     if (signal_info == nullptr) {
-      return nullptr;
+        return nullptr;
     }
 
     // create a custom GClosure
@@ -133,8 +133,7 @@ GClosure *GIRSignalClosure::create(GIRObject *instance,
     GIRSignalClosure *gir_signal_closure = (GIRSignalClosure *)closure;
 
     // connect the finalaize notifier and marshaller
-    g_closure_add_finalize_notifier(closure, nullptr,
-                                    gir_signal_closure_finalize_handler);
+    g_closure_add_finalize_notifier(closure, nullptr, gir_signal_closure_finalize_handler);
     g_closure_set_marshal(closure, gir_signal_closure_marshal);
 
     gir_signal_closure->callback = PersistentFunction(callback);

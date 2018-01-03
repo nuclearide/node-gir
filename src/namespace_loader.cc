@@ -6,7 +6,7 @@
 #include "types/object.h"
 #include "types/struct.h"
 
-#include <string.h>
+#include <cstring>
 
 namespace gir {
 

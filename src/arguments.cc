@@ -2,7 +2,7 @@
 #include "util.h"
 #include "values.h"
 
-#include <string.h>
+#include <cstring>
 #include <sstream>
 #include <vector>
 #include "exceptions.h"

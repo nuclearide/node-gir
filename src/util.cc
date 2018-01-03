@@ -1,9 +1,9 @@
 #include "util.h"
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <algorithm>
 #include <cctype>
+#include <cstdarg>
+#include <cstdio>
+#include <cstdlib>
 #include <regex>
 
 using namespace std;
@@ -18,7 +18,7 @@ static char *_format_message(const char *fmt, va_list args) {
 extern "C" void debug_printf(const char *fmt, ...) {
     const char *debug = getenv("NODE_GIR_DEBUG");
     if (debug == nullptr || *debug == '\0') {
-      return;
+        return;
     }
     printf(" DEBUG: ");
 
