@@ -147,7 +147,10 @@ GIArgument Args::to_g_type(GIArgInfo &argument_info, Local<Value> js_value) {
 
     // this is what we'll return after we correctly
     // set it's values depending on the argument_type_tag
+    // also, we'll make sure it's pointers are null initially!
     GIArgument argument_value;
+    argument_value.v_pointer = nullptr;
+    argument_value.v_string = nullptr;
 
     if (js_value->IsNullOrUndefined() &&
         (g_arg_info_may_be_null(&argument_info) || argument_type_tag == GI_TYPE_TAG_VOID)) {

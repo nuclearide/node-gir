@@ -80,7 +80,11 @@ Local<Value> Func::call(GObject *obj,
         Args args = Args(function_info);
         args.load_js_arguments(js_callback_info);
         if (g_callable_info_is_method(function_info)) {
-            args.load_context(obj);
+            if (obj != nullptr) {
+                args.load_context(obj);
+            } else {
+                throw JSArgumentTypeError("method calls require a native object as the value of 'this'");
+            }
         }
 
         // call the native function. CallNative is just a small wrapper to help with
