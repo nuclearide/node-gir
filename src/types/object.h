@@ -37,7 +37,7 @@ struct InstanceData {
 
 class GIRObject : public Nan::ObjectWrap {
 public:
-    GIRObject(){};
+    GIRObject() = default;
     GIRObject(GIObjectInfo *info_, map<string, GValue> &properties);
     virtual ~GIRObject();
 
@@ -56,9 +56,7 @@ public:
                                  const char *namespace_,
                                  Local<FunctionTemplate> &object_template);
     static void set_custom_fields(Local<FunctionTemplate> &object_template, GIObjectInfo *object_info);
-    static void set_custom_prototype_methods(
-
-        Local<FunctionTemplate> &object_template);
+    static void set_custom_prototype_methods(Local<FunctionTemplate> &object_template);
     static void extend_parent(Local<FunctionTemplate> &object_template, GIObjectInfo *object_info);
 
     static void initialize(Local<Object> target, char *namespace_);
@@ -72,15 +70,9 @@ public:
     static NAN_METHOD(Disconnect);
 
     static MaybeLocal<Value> get_instance(GObject *obj);
-    static ObjectFunctionTemplate *create_object_template(
-
-        GIObjectInfo *object_info);
-    static ObjectFunctionTemplate *find_template_from_object_info(
-
-        GIObjectInfo *object_info);
-    static ObjectFunctionTemplate *find_or_create_template_from_object_info(
-
-        GIObjectInfo *object_info);
+    static ObjectFunctionTemplate *create_object_template(GIObjectInfo *object_info);
+    static ObjectFunctionTemplate *find_template_from_object_info(GIObjectInfo *object_info);
+    static ObjectFunctionTemplate *find_or_create_template_from_object_info(GIObjectInfo *object_info);
 
     static GIFunctionInfo *find_method(GIObjectInfo *inf, char *name);
     static GIFunctionInfo *find_property(GIObjectInfo *inf, char *name);
@@ -99,10 +91,7 @@ private:
     static Local<ObjectTemplate> signal_list(GIObjectInfo *info);
     static Local<ObjectTemplate> v_func_list(GIObjectInfo *info);
     static GType get_object_property_type(GIObjectInfo *object_info, const char *property_name);
-    static map<string, GValue> parse_constructor_argument(
-
-        Local<Object> properties_object,
-        GIObjectInfo *object_info);
+    static map<string, GValue> parse_constructor_argument(Local<Object> properties_object, GIObjectInfo *object_info);
 };
 
 } // namespace gir

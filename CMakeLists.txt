@@ -5,9 +5,11 @@ project(girepository)
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
 set(NODE_MODULES "node_modules")
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # src
-file(GLOB_RECURSE SOURCE_FILES "src/*.cc" "src/*.h")
+file(GLOB_RECURSE SOURCE_FILES "src/*.cc")
+file(GLOB_RECURSE HEADER_FILES "src/*.h")
 
 # cmake-js
 include_directories(${CMAKE_JS_INC})
@@ -27,3 +29,16 @@ set_target_properties(${PROJECT_NAME} PROPERTIES PREFIX "" SUFFIX ".node")
 # link the bindings against our dependencies
 target_link_libraries(${PROJECT_NAME} ${CMAKE_JS_LIB})
 target_link_libraries(${PROJECT_NAME} ${GOBJECT_INTROSPECTION_LIBRARIES})
+
+# clang format for automatic code style
+find_program(CLANG_FORMAT "clang-format")
+if (CLANG_FORMAT)
+  add_custom_target(
+    clang-format
+    COMMAND /usr/bin/clang-format
+    -i
+    -style=file
+    ${SOURCE_FILES}
+    ${HEADER_FILES}
+  )
+endif()
