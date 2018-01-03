@@ -12,8 +12,8 @@ using namespace v8;
 
 class GIRStruct;
 
-typedef Nan::Persistent<FunctionTemplate, CopyablePersistentTraits<FunctionTemplate>> PersistentFunctionTemplate;
-typedef Nan::Persistent<Value, CopyablePersistentTraits<Value>> PersistentValue;
+using PersistentFunctionTemplate = Nan::Persistent<FunctionTemplate, CopyablePersistentTraits<FunctionTemplate>>;
+using PersistentValue = Nan::Persistent<Value, CopyablePersistentTraits<Value>>;
 
 struct StructFunctionTemplate {
     char *type_name;

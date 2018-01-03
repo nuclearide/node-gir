@@ -12,7 +12,7 @@ namespace gir {
 using namespace std;
 using namespace v8;
 
-typedef Nan::Persistent<Function, CopyablePersistentTraits<Function>> PersistentFunction;
+using PersistentFunction = Nan::Persistent<Function, CopyablePersistentTraits<Function>>;
 
 struct GIRSignalClosure {
     GClosure closure;

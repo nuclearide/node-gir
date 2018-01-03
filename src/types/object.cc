@@ -17,7 +17,7 @@ using namespace std;
 
 namespace gir {
 
-void empty_func(void){};
+void empty_func(){};
 
 std::vector<ObjectFunctionTemplate *> GIRObject::templates;
 std::set<GIRObject *> GIRObject::instances;

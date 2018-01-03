@@ -15,7 +15,7 @@ using namespace std;
 
 class GIRObject;
 
-typedef Nan::Persistent<FunctionTemplate, CopyablePersistentTraits<FunctionTemplate>> PersistentFunctionTemplate;
+using PersistentFunctionTemplate = Nan::Persistent<FunctionTemplate, CopyablePersistentTraits<FunctionTemplate>>;
 
 struct ObjectFunctionTemplate {
     char *type_name;
