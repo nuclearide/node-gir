@@ -10,6 +10,10 @@ You need GObject Introspection library to be installed. On a Debian-like system 
 
     $ sudo apt-get install libgirepository1.0-dev
 
+On an arch based system:
+
+    $ sudo pacman -S gobject-introspection
+
 Then just install node-gir with:
 
     $ npm install node-gir
