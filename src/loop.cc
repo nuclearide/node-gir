@@ -66,12 +66,12 @@ static gboolean uv_loop_source_dispatch(GSource *base, GSourceFunc callback, gpo
 
 static GSourceFuncs uv_loop_source_funcs = {
     uv_loop_source_prepare,
-    NULL,
+    nullptr,
     uv_loop_source_dispatch,
-    NULL,
+    nullptr,
 
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
 };
 
 static GSource *uv_loop_source_new(uv_loop_t *loop) {
@@ -83,7 +83,7 @@ static GSource *uv_loop_source_new(uv_loop_t *loop) {
 
 void StartLoop(const Nan::FunctionCallbackInfo<v8::Value> &info) {
     GSource *source = uv_loop_source_new(uv_default_loop());
-    g_source_attach(source, NULL);
+    g_source_attach(source, nullptr);
     info.GetReturnValue().Set(Nan::Undefined());
 }
 

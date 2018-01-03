@@ -409,8 +409,8 @@ NAN_METHOD(GIRObject::Connect) {
 
     // create a closure that will manage the signal callback to JS callback for us
     GClosure *closure = GIRSignalClosure::create(self, signal_query.itype, signal_name, callback);
-    if (closure == NULL) {
-        Nan::ThrowError("unknown signal");
+    if (closure == nullptr) {
+      Nan::ThrowError("unknown signal");
     }
 
     // connect the closure to the signal using the signal_id and detail we've already found

@@ -128,7 +128,7 @@ GIArgument Args::get_out_argument_value(GIArgInfo &argument_info) {
     // else, if we're not responsible for allocation then we can just return an
     // empty GIArgument with a NULL .v_pointer (native call will set it with a
     // memory location)
-    GIArgument argument = {.v_pointer = NULL};
+    GIArgument argument = {.v_pointer = nullptr};
     return argument;
 }
 

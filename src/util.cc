@@ -17,8 +17,8 @@ static char *_format_message(const char *fmt, va_list args) {
 
 extern "C" void debug_printf(const char *fmt, ...) {
     const char *debug = getenv("NODE_GIR_DEBUG");
-    if (debug == NULL || *debug == '\0') {
-        return;
+    if (debug == nullptr || *debug == '\0') {
+      return;
     }
     printf(" DEBUG: ");
 

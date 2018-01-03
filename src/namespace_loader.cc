@@ -42,7 +42,7 @@ Handle<Value> NamespaceLoader::load_namespace(char *namespace_, char *version) {
         repo = g_irepository_get_default();
     }
 
-    GError *er = NULL;
+    GError *er = nullptr;
     GITypelib *lib = g_irepository_require(repo, namespace_, version, (GIRepositoryLoadFlags)0, &er);
     if (!lib) {
         Nan::ThrowError(er->message);

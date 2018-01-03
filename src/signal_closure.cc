@@ -60,7 +60,7 @@ static void gir_signal_closure_marshal(GClosure *closure,
     if (maybe_result.IsEmpty() || maybe_result.ToLocalChecked()->IsNull() ||
         maybe_result.ToLocalChecked()->IsUndefined()) {
         // we don't have a return value
-        return_value = NULL; // set the signal return value to NULL
+        return_value = nullptr;  // set the signal return value to NULL
         return;
     } else {
         // we have a return value
@@ -99,9 +99,9 @@ GISignalInfo *gir_get_signal(GType signal_g_type, const char *signal_name) {
     GIRepository *repository = g_irepository_get_default();
     GIBaseInfo *target_info = g_irepository_find_by_gtype(repository, signal_g_type);
     if (!target_info) {
-        return NULL;
+      return nullptr;
     }
-    GISignalInfo *signal_info = NULL;
+    GISignalInfo *signal_info = nullptr;
     if (GI_IS_OBJECT_INFO(target_info)) {
         signal_info = g_object_info_find_signal((GIObjectInfo *)target_info, signal_name);
     } else if (GI_IS_INTERFACE_INFO(target_info)) {
@@ -124,16 +124,17 @@ GClosure *GIRSignalClosure::create(GIRObject *instance,
                                    const char *signal_name,
                                    Local<Function> callback) {
     GISignalInfo *signal_info = gir_get_signal(signal_g_type, signal_name);
-    if (signal_info == NULL) {
-        return NULL;
+    if (signal_info == nullptr) {
+      return nullptr;
     }
 
     // create a custom GClosure
-    GClosure *closure = g_closure_new_simple(sizeof(GIRSignalClosure), NULL);
+    GClosure *closure = g_closure_new_simple(sizeof(GIRSignalClosure), nullptr);
     GIRSignalClosure *gir_signal_closure = (GIRSignalClosure *)closure;
 
     // connect the finalaize notifier and marshaller
-    g_closure_add_finalize_notifier(closure, NULL, gir_signal_closure_finalize_handler);
+    g_closure_add_finalize_notifier(closure, nullptr,
+                                    gir_signal_closure_finalize_handler);
     g_closure_set_marshal(closure, gir_signal_closure_marshal);
 
     gir_signal_closure->callback = PersistentFunction(callback);

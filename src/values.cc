@@ -76,8 +76,8 @@ Handle<Value> GIRValue::from_g_value(GValue *v, GIBaseInfo *base_info) {
                 Nan::ThrowError("GIRValue - GValueArray conversion not supported");
             } else {
                 // Handle C structure held by boxed type
-                if (base_info == NULL)
-                    Nan::ThrowError("GIRValue - missed base_info for boxed type");
+                if (base_info == nullptr)
+                  Nan::ThrowError("GIRValue - missed base_info for boxed type");
                 boxed_info = g_irepository_find_by_gtype(NamespaceLoader::repo, G_VALUE_TYPE(v));
                 return GIRStruct::from_existing((GIRStruct *)g_value_get_boxed(v), boxed_info);
             }
