@@ -29,7 +29,10 @@ static void gir_signal_closure_marshal(GClosure *closure,
     GITypeInfo *type_info = g_arg_info_get_type(arg_info);
 
     // convert the native GValue to a v8::Value
-    Local<Value> js_param = GIRValue::FromGValue(&native_param, type_info); // TODO: this can throw nan errors if the conversion fails. how should we handle cleaning up memory if this happens?
+    Local<Value> js_param = GIRValue::from_g_value(
+        &native_param, type_info);  // TODO: this can throw nan errors if the
+                                    // conversion fails. how should we handle
+                                    // cleaning up memory if this happens?
 
     // clean up memory
     g_base_info_unref(arg_info);
@@ -62,7 +65,8 @@ static void gir_signal_closure_marshal(GClosure *closure,
     // attempt to convert the Local<Value> to a the return_value's GValue type.
     // if the conversion fails we'll throw an exception to JS land.
     // if the conversion is successful, then the return_value will be set!
-    if (!GIRValue::ToGValue(result, G_VALUE_TYPE(return_value), return_value)) {
+    if (!GIRValue::to_g_value(result, G_VALUE_TYPE(return_value),
+                              return_value)) {
       Nan::ThrowError("cannot convert return value of callback to a GI type");
       return;
     }

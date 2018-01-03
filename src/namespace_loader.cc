@@ -29,105 +29,103 @@ NAN_METHOD(NamespaceLoader::Load) {
 
     if(info.Length() > 1 && info[1]->IsString()) {
         String::Utf8Value version(info[1]);
-        exports = NamespaceLoader::LoadNamespace(*namespace_, *version);
+        exports = NamespaceLoader::load_namespace(*namespace_, *version);
     }
     else {
-        exports = NamespaceLoader::LoadNamespace(*namespace_, nullptr);
+      exports = NamespaceLoader::load_namespace(*namespace_, nullptr);
     }
 
     info.GetReturnValue().Set(exports);
 }
 
-Handle<Value> NamespaceLoader::LoadNamespace(char *namespace_, char *version) {
-    if (!repo) {
-        repo = g_irepository_get_default();
+Handle<Value> NamespaceLoader::load_namespace(char *namespace_, char *version) {
+  if (!repo) {
+    repo = g_irepository_get_default();
+  }
+
+  GError *er = NULL;
+  GITypelib *lib = g_irepository_require(repo, namespace_, version,
+                                         (GIRepositoryLoadFlags)0, &er);
+  if (!lib) {
+    Nan::ThrowError(er->message);
+  }
+
+  type_libs.insert(std::make_pair(namespace_, lib));
+
+  Handle<Value> res = build_classes(namespace_);
+  return res;
+}
+
+Handle<Value> NamespaceLoader::build_classes(char *namespace_) {
+  Handle<Object> module = Nan::New<Object>();
+  Local<Value> exported_value = Nan::Null();
+
+  int length = g_irepository_get_n_infos(repo, namespace_);
+  for (int i = 0; i < length; i++) {
+    GIBaseInfo *info = g_irepository_get_info(repo, namespace_, i);
+
+    switch (g_base_info_get_type(info)) {
+      case GI_INFO_TYPE_BOXED:
+        // FIXME: GIStructInfo or GIUnionInfo
+      case GI_INFO_TYPE_STRUCT:
+        exported_value = GIRStruct::prepare((GIStructInfo *)info);
+        break;
+      case GI_INFO_TYPE_ENUM:
+        exported_value = GIREnum::prepare((GIEnumInfo *)info);
+        break;
+      case GI_INFO_TYPE_FLAGS:
+        exported_value = GIREnum::prepare((GIEnumInfo *)info);
+        break;
+      case GI_INFO_TYPE_OBJECT:
+        exported_value = GIRObject::prepare((GIObjectInfo *)info);
+        break;
+      case GI_INFO_TYPE_INTERFACE:
+        parse_interface((GIInterfaceInfo *)info, module);
+        break;
+      case GI_INFO_TYPE_UNION:
+        parse_union((GIUnionInfo *)info, module);
+        break;
+      case GI_INFO_TYPE_FUNCTION:
+        GIRFunction::initialize(module, (GIFunctionInfo *)info);
+        break;
+      case GI_INFO_TYPE_INVALID:
+      case GI_INFO_TYPE_CALLBACK:
+      case GI_INFO_TYPE_CONSTANT:
+      case GI_INFO_TYPE_INVALID_0:
+      case GI_INFO_TYPE_VALUE:
+      case GI_INFO_TYPE_SIGNAL:
+      case GI_INFO_TYPE_VFUNC:
+      case GI_INFO_TYPE_PROPERTY:
+      case GI_INFO_TYPE_FIELD:
+      case GI_INFO_TYPE_ARG:
+      case GI_INFO_TYPE_TYPE:
+      case GI_INFO_TYPE_UNRESOLVED:
+        // Do nothing
+        break;
     }
 
-    GError *er = NULL;
-    GITypelib *lib = g_irepository_require(repo, namespace_, version, (GIRepositoryLoadFlags)0, &er);
-    if (!lib) {
-        Nan::ThrowError(er->message);
+    if (exported_value != Nan::Null()) {
+      module->Set(Nan::New(g_base_info_get_name(info)).ToLocalChecked(),
+                  exported_value);
+      exported_value = Nan::Null();
     }
 
-    type_libs.insert(std::make_pair(namespace_, lib));
+    g_base_info_unref(info);
+  }
 
-    Handle<Value> res = BuildClasses(namespace_);
-    return res;
+  // when all classes have been created we can inherit them
+  GIRStruct::initialize(module, namespace_);
+
+  return module;
 }
 
-Handle<Value> NamespaceLoader::BuildClasses(char *namespace_) {
-    Handle<Object> module = Nan::New<Object>();
-    Local<Value> exported_value = Nan::Null();
+void NamespaceLoader::parse_struct(GIStructInfo *info,
+                                   Handle<Object> &exports) {}
 
-    int length = g_irepository_get_n_infos(repo, namespace_);
-    for (int i = 0; i < length; i++) {
-        GIBaseInfo *info = g_irepository_get_info(repo, namespace_, i);
+void NamespaceLoader::parse_interface(GIInterfaceInfo *info,
+                                      Handle<Object> &exports) {}
 
-        switch(g_base_info_get_type(info)) {
-            case GI_INFO_TYPE_BOXED:
-                //FIXME: GIStructInfo or GIUnionInfo
-            case GI_INFO_TYPE_STRUCT:
-                exported_value = GIRStruct::Prepare((GIStructInfo*)info);
-                break;
-            case GI_INFO_TYPE_ENUM:
-                exported_value = GIREnum::Prepare((GIEnumInfo*)info);
-                break;
-            case GI_INFO_TYPE_FLAGS:
-                exported_value = GIREnum::Prepare((GIEnumInfo*)info);
-                break;
-            case GI_INFO_TYPE_OBJECT:
-                exported_value = GIRObject::Prepare((GIObjectInfo*)info);
-                break;
-            case GI_INFO_TYPE_INTERFACE:
-                ParseInterface((GIInterfaceInfo*)info, module);
-                break;
-            case GI_INFO_TYPE_UNION:
-                ParseUnion((GIUnionInfo*)info, module);
-                break;
-            case GI_INFO_TYPE_FUNCTION:
-                GIRFunction::Initialize(module, (GIFunctionInfo*)info);
-                break;
-            case GI_INFO_TYPE_INVALID:
-            case GI_INFO_TYPE_CALLBACK:
-            case GI_INFO_TYPE_CONSTANT:
-            case GI_INFO_TYPE_INVALID_0:
-            case GI_INFO_TYPE_VALUE:
-            case GI_INFO_TYPE_SIGNAL:
-            case GI_INFO_TYPE_VFUNC:
-            case GI_INFO_TYPE_PROPERTY:
-            case GI_INFO_TYPE_FIELD:
-            case GI_INFO_TYPE_ARG:
-            case GI_INFO_TYPE_TYPE:
-            case GI_INFO_TYPE_UNRESOLVED:
-                // Do nothing
-                break;
-        }
-
-        if (exported_value != Nan::Null()) {
-            module->Set(Nan::New(g_base_info_get_name(info)).ToLocalChecked(), exported_value);
-            exported_value = Nan::Null();
-        }
-
-        g_base_info_unref(info);
-    }
-
-    // when all classes have been created we can inherit them
-    GIRStruct::Initialize(module, namespace_);
-
-    return module;
-}
-
-void NamespaceLoader::ParseStruct(GIStructInfo *info, Handle<Object> &exports) {
-
-}
-
-void NamespaceLoader::ParseInterface(GIInterfaceInfo *info, Handle<Object> &exports) {
-
-}
-
-void NamespaceLoader::ParseUnion(GIUnionInfo *info, Handle<Object> &exports) {
-
-}
+void NamespaceLoader::parse_union(GIUnionInfo *info, Handle<Object> &exports) {}
 
 NAN_METHOD(NamespaceLoader::SearchPath) {
     if(!repo) {

@@ -17,16 +17,16 @@ class NamespaceLoader : public Nan::ObjectWrap {
     static NAN_METHOD(SearchPath);
 
   private:
-    static v8::Handle<v8::Value> LoadNamespace(char *namespace_, char *version);
-    static v8::Handle<v8::Value> BuildClasses(char *namespace_);
+   static v8::Handle<v8::Value> load_namespace(char *namespace_, char *version);
+   static v8::Handle<v8::Value> build_classes(char *namespace_);
 
-    static void ParseStruct(GIStructInfo *info, v8::Handle<v8::Object> &exports);
-    static void ParseEnum(GIEnumInfo *info, v8::Handle<v8::Object> &exports);
-    static void ParseFlags(GIEnumInfo *info, v8::Handle<v8::Object> &exports);
-    static void ParseInterface(GIInterfaceInfo *info, v8::Handle<v8::Object> &exports);
-    static void ParseUnion(GIUnionInfo *info, v8::Handle<v8::Object> &exports);
-    static void ParseFunction(GIFunctionInfo *info, v8::Handle<v8::Object> &exports);
-
+   static void parse_struct(GIStructInfo *info,
+                                                        v8::Handle<v8::Object> &exports);
+   static void parse_interface(GIInterfaceInfo *info,
+                                                              v8::Handle<v8::Object> &exports);
+   static void parse_union(GIUnionInfo *info, v8::Handle<v8::Object> &exports);
+   static void parse_function(GIFunctionInfo *info,
+                                                            v8::Handle<v8::Object> &exports);
 };
 
 }

@@ -49,16 +49,22 @@ class GIRObject : public Nan::ObjectWrap {
     static std::set<GIRObject *> instances;
     static std::vector<ObjectFunctionTemplate *> templates;
 
-    static Local<Value> FromExisting(GObject *obj, GType t);
+    static Local<Value> from_existing(GObject *obj, GType t);
     static NAN_METHOD(New);
 
-    static Local<Object> Prepare(GIObjectInfo *object_info);
-    static void RegisterMethods(GIObjectInfo *object_info, const char *namespace_, Local<FunctionTemplate> &object_template);
-    static void SetCustomFields(Local<FunctionTemplate> &object_template, GIObjectInfo *object_info);
-    static void SetCustomPrototypeMethods(Local<FunctionTemplate> &object_template);
-    static void ExtendParent(Local<FunctionTemplate> &object_template, GIObjectInfo *object_info);
+    static Local<Object> prepare(GIObjectInfo *object_info);
+    static void register_methods(GIObjectInfo *object_info,
+                                                                  const char *namespace_,
+                                                                  Local<FunctionTemplate> &object_template);
+    static void set_custom_fields(Local<FunctionTemplate> &object_template,
+                                                                    GIObjectInfo *object_info);
+    static void set_custom_prototype_methods(
 
-    static void Initialize(Local<Object> target, char *namespace_);
+        Local<FunctionTemplate> &object_template);
+    static void extend_parent(Local<FunctionTemplate> &object_template,
+                                                            GIObjectInfo *object_info);
+
+    static void initialize(Local<Object> target, char *namespace_);
 
     static NAN_METHOD(GetProperty);
     static NAN_METHOD(SetProperty);
@@ -68,29 +74,39 @@ class GIRObject : public Nan::ObjectWrap {
     static NAN_METHOD(Connect);
     static NAN_METHOD(Disconnect);
 
-    static MaybeLocal<Value> GetInstance(GObject *obj);
-    static ObjectFunctionTemplate* CreateObjectTemplate(GIObjectInfo *object_info);
-    static ObjectFunctionTemplate* FindTemplateFromObjectInfo(GIObjectInfo *object_info);
-    static ObjectFunctionTemplate* FindOrCreateTemplateFromObjectInfo(GIObjectInfo *object_info);
+    static MaybeLocal<Value> get_instance(GObject *obj);
+    static ObjectFunctionTemplate  *create_object_template(
 
-    static GIFunctionInfo *FindMethod(GIObjectInfo *inf, char *name);
-    static GIFunctionInfo *FindProperty(GIObjectInfo *inf, char *name);
-    static GIFunctionInfo *FindInterface(GIObjectInfo *inf, char *name);
-    static GIFunctionInfo *FindField(GIObjectInfo *inf, char *name);
-    static GIFunctionInfo *FindSignal(GIObjectInfo *inf, char *name);
-    static GIFunctionInfo *FindVFunc(GIObjectInfo *inf, char *name);
+        GIObjectInfo *object_info);
+    static ObjectFunctionTemplate  *find_template_from_object_info(
 
-  private:
-    static void SetMethod(Local<FunctionTemplate> &target, GIFunctionInfo *function_info);
+        GIObjectInfo *object_info);
+    static ObjectFunctionTemplate  *find_or_create_template_from_object_info(
 
-    static Local<ObjectTemplate> PropertyList(GIObjectInfo *info);
-    static Local<ObjectTemplate> MethodList(GIObjectInfo *info);
-    static Local<ObjectTemplate> InterfaceList(GIObjectInfo *info);
-    static Local<ObjectTemplate> FieldList(GIObjectInfo *info);
-    static Local<ObjectTemplate> SignalList(GIObjectInfo *info);
-    static Local<ObjectTemplate> VFuncList(GIObjectInfo *info);
-    static GType GetObjectPropertyType(GIObjectInfo *object_info, const char *property_name);
-    static map<string, GValue> ParseConstructorArgument(Local<Object> properties_object, GIObjectInfo *object_info);
+        GIObjectInfo *object_info);
+
+    static GIFunctionInfo *find_method(GIObjectInfo *inf, char *name);
+    static GIFunctionInfo *find_property(GIObjectInfo *inf, char *name);
+    static GIFunctionInfo *find_interface(GIObjectInfo *inf, char *name);
+    static GIFunctionInfo *find_field(GIObjectInfo *inf, char *name);
+    static GIFunctionInfo *find_signal(GIObjectInfo *inf, char *name);
+    static GIFunctionInfo *find_v_func(GIObjectInfo *inf, char *name);
+
+    private:
+    static void set_method(Local<FunctionTemplate> &target,
+                                                      GIFunctionInfo *function_info);
+
+    static Local<ObjectTemplate> property_list(GIObjectInfo *info);
+    static Local<ObjectTemplate> method_list(GIObjectInfo *info);
+    static Local<ObjectTemplate> interface_list(GIObjectInfo *info);
+    static Local<ObjectTemplate> field_list(GIObjectInfo *info);
+    static Local<ObjectTemplate> signal_list(GIObjectInfo *info);
+    static Local<ObjectTemplate> v_func_list(GIObjectInfo *info);
+    static GType get_object_property_type(GIObjectInfo *object_info,
+                                                                                    const char *property_name);
+    static map<string, GValue> parse_constructor_argument(
+
+        Local<Object> properties_object, GIObjectInfo *object_info);
 };
 
 }

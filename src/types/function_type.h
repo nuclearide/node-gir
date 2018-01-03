@@ -12,11 +12,11 @@ class GIRFunction : public Nan::ObjectWrap {
   public:
     GIRFunction() {};
 
-    static void Initialize(v8::Handle<v8::Object> target, GIObjectInfo *info);
+    static void initialize(v8::Handle<v8::Object> target, GIObjectInfo *info);
     static NAN_METHOD(Execute);
-    static char* ToCamelCase(const char *str);
+    static char *to_camel_case(const char *str);
 
-  private:
+   private:
 };
 
 }

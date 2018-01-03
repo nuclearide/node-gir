@@ -45,25 +45,27 @@ class GIRStruct : public Nan::ObjectWrap {
     static std::vector<StructData> instances;
     static std::vector<StructFunctionTemplate> templates;
 
-    static v8::Handle<v8::Value> FromExisting(gpointer c_structure, GIStructInfo *info);
+    static v8::Handle<v8::Value> from_existing(gpointer c_structure,
+                                               GIStructInfo *info);
     static NAN_METHOD(New);
 
-    static Local<Value> Prepare(GIStructInfo *info);
-    static void RegisterMethods(GIStructInfo *info, const char *namespace_, v8::Handle<v8::FunctionTemplate> object_template);
+    static Local<Value> prepare(GIStructInfo *info);
+    static void register_methods(
+        GIStructInfo *info, const char *namespace_,
+        v8::Handle<v8::FunctionTemplate> object_template);
 
-    static void Initialize(v8::Handle<v8::Object> target, char *namespace_);
+    static void initialize(v8::Handle<v8::Object> target, char *namespace_);
 
     static NAN_METHOD(CallMethod);
 
-    static void PushInstance(GIRStruct *obj, v8::Handle<v8::Value>);
-    static v8::Handle<v8::Value> GetStructure(gpointer c_structure);
+    static void push_instance(GIRStruct *obj, v8::Handle<v8::Value>);
+    static v8::Handle<v8::Value> get_structure(gpointer c_structure);
 
-
-  private:
-    static v8::Handle<v8::Object> PropertyList(GIObjectInfo *info);
-    static v8::Handle<v8::Object> MethodList(GIObjectInfo *info);
-    static v8::Handle<v8::Object> InterfaceList(GIObjectInfo *info);
-    static v8::Handle<v8::Object> FieldList(GIObjectInfo *info);
+   private:
+    static v8::Handle<v8::Object> property_list(GIObjectInfo *info);
+    static v8::Handle<v8::Object> method_list(GIObjectInfo *info);
+    static v8::Handle<v8::Object> interface_list(GIObjectInfo *info);
+    static v8::Handle<v8::Object> field_list(GIObjectInfo *info);
 };
 
 }

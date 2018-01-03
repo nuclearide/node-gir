@@ -9,7 +9,7 @@ using namespace v8;
 
 class GIREnum {
   public:
-    static Local<Object> Prepare(GIEnumInfo *enum_info);
+   static Local<Object> prepare(GIEnumInfo *enum_info);
 };
 
 }
