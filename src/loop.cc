@@ -81,7 +81,7 @@ static GSource *uv_loop_source_new(uv_loop_t *loop) {
     return &source->source;
 }
 
-void StartLoop(const Nan::FunctionCallbackInfo<v8::Value> &info) {
+NAN_METHOD(start_loop) {
     GSource *source = uv_loop_source_new(uv_default_loop());
     g_source_attach(source, nullptr);
     info.GetReturnValue().Set(Nan::Undefined());

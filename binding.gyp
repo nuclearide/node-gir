@@ -3,7 +3,7 @@
         {
             'target_name': 'girepository',
             'sources': [
-                'src/init.cc',
+                'src/main.cc',
                 'src/util.cc',
                 'src/namespace_loader.cc',
                 'src/arguments.cc',

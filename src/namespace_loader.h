@@ -9,7 +9,7 @@ using namespace v8;
 
 class NamespaceLoader : public Nan::ObjectWrap {
 public:
-    static NAN_METHOD(Load);
+    static NAN_METHOD(load);
 
 private:
     static Local<Value> load_namespace(const char *library_namespace, const char *version);

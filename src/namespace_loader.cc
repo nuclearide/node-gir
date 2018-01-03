@@ -12,7 +12,7 @@ namespace gir {
 
 using namespace std;
 
-NAN_METHOD(NamespaceLoader::Load) {
+NAN_METHOD(NamespaceLoader::load) {
     if (info.Length() < 1) {
         Nan::ThrowError("too few arguments");
     }

@@ -4,5 +4,6 @@
 
 namespace gir {
 
-void StartLoop(const Nan::FunctionCallbackInfo<v8::Value> &info);
+NAN_METHOD(start_loop);
+
 };
