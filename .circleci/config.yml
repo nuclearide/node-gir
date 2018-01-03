@@ -31,7 +31,8 @@ jobs:
     steps:
       - checkout
       - run: apt-get update
-      - run: apt-get install -y cmake clang-format
+      - run: apt-get install -y clang-format
+      - run: npm run lint -- -output-replacements-xml | grep -c "<replacement "; [ $? -ne 1 ] && exit 1 || exit 0
 
 workflows:
   version: 2
