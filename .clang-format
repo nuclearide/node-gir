@@ -80,7 +80,7 @@ NamespaceIndentation: None
 ObjCBlockIndentWidth: 2
 ObjCSpaceAfterProperty: false
 ObjCSpaceBeforeProtocolList: false
-PenaltyBreakAssignment: 2
+PenaltyBreakAssignment: 10000
 PenaltyBreakBeforeFirstCallParameter: 10000
 PenaltyBreakComment: 300
 PenaltyBreakFirstLessLess: 120

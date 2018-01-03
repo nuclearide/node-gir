@@ -5,5 +5,4 @@
 namespace gir {
 
 NAN_METHOD(start_loop);
-
 };

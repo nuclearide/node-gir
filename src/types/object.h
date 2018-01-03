@@ -27,7 +27,7 @@ struct ObjectFunctionTemplate {
 
 class GIRObject : public Nan::ObjectWrap {
 private:
-    static std::set<GIRObject *> instances; // FIXME: use smart pointers
+    static std::set<GIRObject *> instances;                 // FIXME: use smart pointers
     static std::vector<ObjectFunctionTemplate *> templates; // FIXME: use smart pointers
     GObject *obj;
     GIBaseInfo *info;
@@ -35,7 +35,7 @@ private:
 public:
     static Local<Object> prepare(GIObjectInfo *object_info);
     static Local<Value> from_existing(GObject *obj, GType t);
-    GObject* get_gobject();
+    GObject *get_gobject();
 
 private:
     GIRObject() = default;
@@ -64,7 +64,6 @@ private:
     static NAN_PROPERTY_GETTER(property_get_handler);
     static NAN_PROPERTY_SETTER(property_set_handler);
     static NAN_PROPERTY_QUERY(property_query_handler);
-
 };
 
 } // namespace gir

@@ -389,8 +389,8 @@ Handle<Value> Args::from_g_type_array(GIArgument *arg, GITypeInfo *type, int arr
             return arr;
 
         default:
-            gchar *exc_msg =
-                g_strdup_printf("Converting array of '%s' is not supported", g_type_tag_to_string(param_tag));
+            gchar *exc_msg = g_strdup_printf("Converting array of '%s' is not supported",
+                                             g_type_tag_to_string(param_tag));
             Nan::ThrowError(exc_msg);
             return Nan::Undefined();
     }
@@ -407,8 +407,8 @@ Local<Value> Args::from_g_type(GIArgument *arg, GITypeInfo *type, int array_leng
         GIInfoType interface_type = g_base_info_get_type(interface_info);
 
         if (interface_type == GI_INFO_TYPE_OBJECT) {
-            Local<Value> new_instance =
-                GIRObject::from_existing(G_OBJECT(arg->v_pointer), g_registered_type_info_get_g_type(interface_info));
+            Local<Value> new_instance = GIRObject::from_existing(G_OBJECT(arg->v_pointer),
+                                                                 g_registered_type_info_get_g_type(interface_info));
             g_base_info_unref(interface_info);
             return new_instance;
         }

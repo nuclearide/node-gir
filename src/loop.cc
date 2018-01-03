@@ -41,8 +41,8 @@ static gboolean uv_loop_source_prepare(GSource *base, int *timeout) {
 static void call_next_tick_callback() {
     Nan::HandleScope scope;
     // get "process" from node's global scope
-    v8::Local<v8::Value> process_value =
-        Nan::GetCurrentContext()->Global()->Get(Nan::New<v8::String>("process").ToLocalChecked());
+    v8::Local<v8::Value> process_value = Nan::GetCurrentContext()->Global()->Get(
+        Nan::New<v8::String>("process").ToLocalChecked());
     if (process_value->IsObject()) {
         // if it's a JS object, the type cast it to a Local<Object>.
         v8::Local<v8::Object> process_object = process_value->ToObject();

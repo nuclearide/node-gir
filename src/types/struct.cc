@@ -349,8 +349,8 @@ void GIRStruct::register_methods(GIStructInfo *info, const char *namespace_, Han
             // TODO: refactor Func::CreateMethod() to support more than GIRObject so
             // we can reuse that logic in here and keep is DRY!
             Local<External> function_info_extern = Nan::New<External>((void *)g_base_info_ref(func));
-            Local<FunctionTemplate> method_template =
-                Nan::New<FunctionTemplate>(GIRStruct::CallMethod, function_info_extern);
+            Local<FunctionTemplate> method_template = Nan::New<FunctionTemplate>(GIRStruct::CallMethod,
+                                                                                 function_info_extern);
             object_template->PrototypeTemplate()->Set(function_name, method_template);
         }
         g_base_info_unref(func);

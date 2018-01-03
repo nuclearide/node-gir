@@ -52,7 +52,7 @@ GIRObject::GIRObject(GIObjectInfo *object_info, map<string, GValue> &properties)
     }
 }
 
-GObject* GIRObject::get_gobject() {
+GObject *GIRObject::get_gobject() {
     return this->obj;
 }
 
@@ -239,7 +239,9 @@ MaybeLocal<Value> GIRObject::get_instance(GObject *obj) {
     return MaybeLocal<Value>();
 }
 
-GIPropertyInfo *GIRObject::find_property(GIObjectInfo *object_info, char *property_name) { // FIXME: use a unique_pointer with std::move to return ownership
+GIPropertyInfo *GIRObject::find_property(
+    GIObjectInfo *object_info,
+    char *property_name) { // FIXME: use a unique_pointer with std::move to return ownership
     int num_properties = g_object_info_get_n_properties(object_info);
     for (int i = 0; i < num_properties; i++) {
         GIPropertyInfo *prop = g_object_info_get_property(object_info, i);

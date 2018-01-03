@@ -127,8 +127,8 @@ Local<Value> Func::js_return_value_from_native_call(GIFunctionInfo *function_inf
     // return value is only useful in C) or the return value is void, then we can
     // skip the return value when determining what should be returned from native
     // to JS.
-    bool skip_return_value =
-        g_callable_info_skip_return(function_info) || g_type_info_get_tag(&return_type_info) == GI_TYPE_TAG_VOID;
+    bool skip_return_value = g_callable_info_skip_return(function_info) ||
+                             g_type_info_get_tag(&return_type_info) == GI_TYPE_TAG_VOID;
     int number_of_return_values = skip_return_value ? args.out.size() : args.out.size() + 1;
 
     Local<Array> js_result_array = Nan::New<Array>(number_of_return_values);
