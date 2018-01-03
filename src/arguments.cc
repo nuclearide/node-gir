@@ -312,7 +312,7 @@ GIArgument Args::to_g_type(GIArgInfo &argument_info, Local<Value> js_value) {
                         throw JSArgumentTypeError();
                     }
                     GIRObject *gir_object = Nan::ObjectWrap::Unwrap<GIRObject>(js_value->ToObject());
-                    argument_value.v_pointer = gir_object->obj;
+                    argument_value.v_pointer = gir_object->get_gobject();
                 }
 
                 // if it's a GValue then we need to use our GIRValue helper

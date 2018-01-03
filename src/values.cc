@@ -109,7 +109,7 @@ bool GIRValue::to_g_value(Handle<Value> value, GType type, GValue *v) {
         case G_TYPE_INTERFACE:
         case G_TYPE_OBJECT:
             if (value->IsObject()) {
-                g_value_set_object(v, Nan::ObjectWrap::Unwrap<GIRObject>(value->ToObject())->obj);
+                g_value_set_object(v, Nan::ObjectWrap::Unwrap<GIRObject>(value->ToObject())->get_gobject());
                 return true;
             }
             break;

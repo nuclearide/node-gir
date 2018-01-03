@@ -39,7 +39,7 @@ NAN_METHOD(Func::InvokeMethod) {
     }
 
     GIRObject *that = Nan::ObjectWrap::Unwrap<GIRObject>(info.This()->ToObject());
-    GObject *native_object = that->obj;
+    GObject *native_object = that->get_gobject();
     Local<External> function_info_extern = Local<External>::Cast(info.Data());
     GIFunctionInfo *function_info = (GIFunctionInfo *)function_info_extern->Value();
 
