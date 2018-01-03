@@ -24,4 +24,4 @@ public:
     JSArgumentTypeError(string message) : runtime_error("Type Error: " + message) {}
 };
 
-}
+} // namespace gir

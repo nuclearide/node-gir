@@ -1,9 +1,9 @@
 #pragma once
 
-#include <v8.h>
-#include <nan.h>
-#include <glib.h>
 #include <girepository.h>
+#include <glib.h>
+#include <nan.h>
+#include <v8.h>
 #include <vector>
 
 namespace gir {
@@ -34,8 +34,8 @@ struct StructData {
 };
 
 class GIRStruct : public Nan::ObjectWrap {
-  public:
-    GIRStruct() {};
+public:
+    GIRStruct(){};
     GIRStruct(GIObjectInfo *info);
 
     gpointer c_structure;
@@ -45,14 +45,13 @@ class GIRStruct : public Nan::ObjectWrap {
     static std::vector<StructData> instances;
     static std::vector<StructFunctionTemplate> templates;
 
-    static v8::Handle<v8::Value> from_existing(gpointer c_structure,
-                                               GIStructInfo *info);
+    static v8::Handle<v8::Value> from_existing(gpointer c_structure, GIStructInfo *info);
     static NAN_METHOD(New);
 
     static Local<Value> prepare(GIStructInfo *info);
-    static void register_methods(
-        GIStructInfo *info, const char *namespace_,
-        v8::Handle<v8::FunctionTemplate> object_template);
+    static void register_methods(GIStructInfo *info,
+                                 const char *namespace_,
+                                 v8::Handle<v8::FunctionTemplate> object_template);
 
     static void initialize(v8::Handle<v8::Object> target, char *namespace_);
 
@@ -61,11 +60,11 @@ class GIRStruct : public Nan::ObjectWrap {
     static void push_instance(GIRStruct *obj, v8::Handle<v8::Value>);
     static v8::Handle<v8::Value> get_structure(gpointer c_structure);
 
-   private:
+private:
     static v8::Handle<v8::Object> property_list(GIObjectInfo *info);
     static v8::Handle<v8::Object> method_list(GIObjectInfo *info);
     static v8::Handle<v8::Object> interface_list(GIObjectInfo *info);
     static v8::Handle<v8::Object> field_list(GIObjectInfo *info);
 };
 
-}
+} // namespace gir

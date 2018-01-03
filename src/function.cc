@@ -1,8 +1,8 @@
 #include "function.h"
-#include "util.h"
-#include "exceptions.h"
 #include <nan.h>
 #include <vector>
+#include "exceptions.h"
+#include "util.h"
 
 #include "types/object.h"
 
@@ -11,22 +11,18 @@ using namespace v8;
 namespace gir {
 
 Local<FunctionTemplate> Func::create_function(GIFunctionInfo *function_info) {
-  Local<External> function_info_extern =
-      Nan::New<External>((void *)g_base_info_ref(function_info));
-  Local<FunctionTemplate> function_template =
-      Nan::New<FunctionTemplate>(Func::InvokeFunction, function_info_extern);
-  return function_template;
+    Local<External> function_info_extern = Nan::New<External>((void *)g_base_info_ref(function_info));
+    Local<FunctionTemplate> function_template = Nan::New<FunctionTemplate>(Func::InvokeFunction, function_info_extern);
+    return function_template;
 }
 
 // FIXME: this needs to be refactored to support anyone creating a function
 // that executes the native function specified by GIFunctionInfo with a given GObject
 // not just GIRObject's as is the case currently with Func::InvokeMethod!
 Local<FunctionTemplate> Func::create_method(GIFunctionInfo *function_info) {
-  Local<External> function_info_extern =
-      Nan::New<External>((void *)g_base_info_ref(function_info));
-  Local<FunctionTemplate> function_template =
-      Nan::New<FunctionTemplate>(Func::InvokeMethod, function_info_extern);
-  return function_template;
+    Local<External> function_info_extern = Nan::New<External>((void *)g_base_info_ref(function_info));
+    Local<FunctionTemplate> function_template = Nan::New<FunctionTemplate>(Func::InvokeMethod, function_info_extern);
+    return function_template;
 }
 
 NAN_METHOD(Func::InvokeFunction) {
@@ -47,59 +43,56 @@ NAN_METHOD(Func::InvokeMethod) {
     Local<External> function_info_extern = Local<External>::Cast(info.Data());
     GIFunctionInfo *function_info = (GIFunctionInfo *)function_info_extern->Value();
 
-    Local<Value> js_func_result =
-        Func::call(native_object, function_info, info);
+    Local<Value> js_func_result = Func::call(native_object, function_info, info);
     info.GetReturnValue().Set(js_func_result);
 }
 
 GIArgument Func::call_native(GIFunctionInfo *function_info, Args &args) {
-  GIArgument return_value;
-  GError *error = nullptr;
+    GIArgument return_value;
+    GError *error = nullptr;
 
-  g_function_info_invoke(function_info, args.in.data(), args.in.size(),
-                         args.out.data(), args.out.size(), &return_value,
-                         &error);
+    g_function_info_invoke(
+        function_info, args.in.data(), args.in.size(), args.out.data(), args.out.size(), &return_value, &error);
 
-  if (error != nullptr) {
-    string message = string(error->message);
-    g_error_free(error);
-    throw NativeGError(message);  // FIXME: we might leak here if the native
-                                  // function allocated memory inside
-                                  // return_value and gave us ownership.
-  }
-
-  return return_value;
-}
-
-Local<Value> Func::call(
-    GObject *obj, GIFunctionInfo *function_info,
-    const Nan::FunctionCallbackInfo<v8::Value> &js_callback_info) {
-  // we want to catch any errors we may encounter so we can throw them as JS
-  // errors
-  try {
-    // create the arguments for the native function
-    Args args = Args(function_info);
-    args.load_js_arguments(js_callback_info);
-    if (g_callable_info_is_method(function_info)) {
-      args.load_context(obj);
+    if (error != nullptr) {
+        string message = string(error->message);
+        g_error_free(error);
+        throw NativeGError(message); // FIXME: we might leak here if the native
+                                     // function allocated memory inside
+                                     // return_value and gave us ownership.
     }
 
-    // call the native function. CallNative is just a small wrapper to help with
-    // handling native errors and return values.
-    GIArgument result = Func::call_native(function_info, args);
+    return return_value;
+}
 
-    // handle the return value that we should pass back to JS.
-    // there are some rules to decide how to handle there output from the native
-    // function so we'll use a helper function to handle that logic for us.
-    Local<Value> js_return_value =
-        Func::js_return_value_from_native_call(function_info, args, result);
-    return js_return_value;
-  } catch (exception &error) {
-    // if any exception happens we want to translate it to a JS error and return
-    // undefined.
-    Nan::ThrowError(error.what());
-    return Nan::Undefined();
-  }
+Local<Value> Func::call(GObject *obj,
+                        GIFunctionInfo *function_info,
+                        const Nan::FunctionCallbackInfo<v8::Value> &js_callback_info) {
+    // we want to catch any errors we may encounter so we can throw them as JS
+    // errors
+    try {
+        // create the arguments for the native function
+        Args args = Args(function_info);
+        args.load_js_arguments(js_callback_info);
+        if (g_callable_info_is_method(function_info)) {
+            args.load_context(obj);
+        }
+
+        // call the native function. CallNative is just a small wrapper to help with
+        // handling native errors and return values.
+        GIArgument result = Func::call_native(function_info, args);
+
+        // handle the return value that we should pass back to JS.
+        // there are some rules to decide how to handle there output from the native
+        // function so we'll use a helper function to handle that logic for us.
+        Local<Value> js_return_value = Func::js_return_value_from_native_call(function_info, args, result);
+        return js_return_value;
+    } catch (exception &error) {
+        // if any exception happens we want to translate it to a JS error and return
+        // undefined.
+        Nan::ThrowError(error.what());
+        return Nan::Undefined();
+    }
 }
 
 /**
@@ -109,83 +102,81 @@ Local<Value> Func::call(
  * Rules:
  * - If the native function has a return value and no out-args then just return the return value
  * - If the native function has no return value (skipped or void) and 1 out-arg, return just the out arg as a value
- * - If the native function has no return value (skipped or void) and more than 1 out-arg then return them as an array: [out-arg-1, out-arg-2, ..., out-arg-n]
- * - If the native function has a return value and 1 or more out-args then return them as an array with the return value in position 0: [return-value, out-arg-1, out-arg-2, ..., out-arg-n]
+ * - If the native function has no return value (skipped or void) and more than 1 out-arg then return them as an array:
+ * [out-arg-1, out-arg-2, ..., out-arg-n]
+ * - If the native function has a return value and 1 or more out-args then return them as an array with the return value
+ * in position 0: [return-value, out-arg-1, out-arg-2, ..., out-arg-n]
  */
-Local<Value> Func::js_return_value_from_native_call(
-    GIFunctionInfo *function_info, Args &args, GIArgument &native_call_result) {
-  // load the function's return type info
-  GITypeInfo return_type_info;
-  g_callable_info_load_return_type(function_info, &return_type_info);
+Local<Value> Func::js_return_value_from_native_call(GIFunctionInfo *function_info,
+                                                    Args &args,
+                                                    GIArgument &native_call_result) {
+    // load the function's return type info
+    GITypeInfo return_type_info;
+    g_callable_info_load_return_type(function_info, &return_type_info);
 
-  // if the function's metadata says to skip the return value (meaning the
-  // return value is only useful in C) or the return value is void, then we can
-  // skip the return value when determining what should be returned from native
-  // to JS.
-  bool skip_return_value =
-      g_callable_info_skip_return(function_info) ||
-      g_type_info_get_tag(&return_type_info) == GI_TYPE_TAG_VOID;
-  int number_of_return_values =
-      skip_return_value ? args.out.size() : args.out.size() + 1;
+    // if the function's metadata says to skip the return value (meaning the
+    // return value is only useful in C) or the return value is void, then we can
+    // skip the return value when determining what should be returned from native
+    // to JS.
+    bool skip_return_value =
+        g_callable_info_skip_return(function_info) || g_type_info_get_tag(&return_type_info) == GI_TYPE_TAG_VOID;
+    int number_of_return_values = skip_return_value ? args.out.size() : args.out.size() + 1;
 
-  Local<Array> js_result_array = Nan::New<Array>(number_of_return_values);
+    Local<Array> js_result_array = Nan::New<Array>(number_of_return_values);
 
-  // if we should NOT skip the native return value, then we should convert it to
-  // JS and set it in position 0 of the returned value array
-  if (!skip_return_value) {
-    Local<Value> js_return_value =
-        Args::from_g_type(&native_call_result, &return_type_info, 0);
-    js_result_array->Set(0, js_return_value);
-  }
-
-  // We need to handle OUT arguments from the native call.
-  // If we had some out args then
-  // foreach native argument, if it's an our arg, grab the next out arg from
-  // args and add it to the next position in the js_result_array. The code here
-  // is a bit confusing because `g_callable_info_load_arg(info, index)` requires
-  // the argument index where the index is relative to ALL arguments where as
-  // args.out.data() is an array of just the OUT args (doesn't include IN args)
-  // so we can't just loop over args.out :(
-  int js_results_array_pos =
-      skip_return_value ? 0 : 1;  // if there is a return_value then we need to
-                                  // offset the out args by 1 i.e.
-                                  // [return_value, out-arg-1, out-arg-2, ...]
-  int next_out_arg_pos = 0;
-  if (args.out.size() > 0) {
-    for (int i = 0; i < g_callable_info_get_n_args(function_info); i++) {
-      GIArgInfo argument_info;
-      g_callable_info_load_arg(function_info, i, &argument_info);
-      GIDirection argument_direction = g_arg_info_get_direction(&argument_info);
-      if (argument_direction == GI_DIRECTION_OUT) {
-        GITypeInfo out_arg_type_info;
-        g_arg_info_load_type(&argument_info, &out_arg_type_info);
-        js_result_array->Set(js_results_array_pos,
-                             Args::from_g_type(&args.out[next_out_arg_pos],
-                                               &out_arg_type_info, 0));
-        next_out_arg_pos += 1;
-        js_results_array_pos += 1;
-      }
+    // if we should NOT skip the native return value, then we should convert it to
+    // JS and set it in position 0 of the returned value array
+    if (!skip_return_value) {
+        Local<Value> js_return_value = Args::from_g_type(&native_call_result, &return_type_info, 0);
+        js_result_array->Set(0, js_return_value);
     }
-  }
 
-  // based on the number of return values from the native function call we'll
-  // decide what to send back to JS
-  switch (number_of_return_values) {
-    case 0:
-      // if there is no return value (skipped return value, void return, and no
-      // out-args) then return `undefined`
-      return Nan::Undefined();
+    // We need to handle OUT arguments from the native call.
+    // If we had some out args then
+    // foreach native argument, if it's an our arg, grab the next out arg from
+    // args and add it to the next position in the js_result_array. The code here
+    // is a bit confusing because `g_callable_info_load_arg(info, index)` requires
+    // the argument index where the index is relative to ALL arguments where as
+    // args.out.data() is an array of just the OUT args (doesn't include IN args)
+    // so we can't just loop over args.out :(
+    int js_results_array_pos = skip_return_value ? 0 : 1; // if there is a return_value then we need to
+                                                          // offset the out args by 1 i.e.
+                                                          // [return_value, out-arg-1, out-arg-2, ...]
+    int next_out_arg_pos = 0;
+    if (args.out.size() > 0) {
+        for (int i = 0; i < g_callable_info_get_n_args(function_info); i++) {
+            GIArgInfo argument_info;
+            g_callable_info_load_arg(function_info, i, &argument_info);
+            GIDirection argument_direction = g_arg_info_get_direction(&argument_info);
+            if (argument_direction == GI_DIRECTION_OUT) {
+                GITypeInfo out_arg_type_info;
+                g_arg_info_load_type(&argument_info, &out_arg_type_info);
+                js_result_array->Set(js_results_array_pos,
+                                     Args::from_g_type(&args.out[next_out_arg_pos], &out_arg_type_info, 0));
+                next_out_arg_pos += 1;
+                js_results_array_pos += 1;
+            }
+        }
+    }
 
-    case 1:
-      // if there's only 1 return value we need to send it to JS as a Value (not
-      // an array with 1 value in it)
-      return js_result_array->Get(0);
+    // based on the number of return values from the native function call we'll
+    // decide what to send back to JS
+    switch (number_of_return_values) {
+        case 0:
+            // if there is no return value (skipped return value, void return, and no
+            // out-args) then return `undefined`
+            return Nan::Undefined();
 
-    default:
-      // else there must be more then 1 return value meaning we should return
-      // them as a JS array
-      return js_result_array;
-  }
+        case 1:
+            // if there's only 1 return value we need to send it to JS as a Value (not
+            // an array with 1 value in it)
+            return js_result_array->Get(0);
+
+        default:
+            // else there must be more then 1 return value meaning we should return
+            // them as a JS array
+            return js_result_array;
+    }
 }
 
-}
+} // namespace gir

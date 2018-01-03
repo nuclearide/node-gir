@@ -1,8 +1,8 @@
+#include "loop.h"
 #include <glib.h>
+#include <nan.h>
 #include <uv.h>
 #include <v8.h>
-#include <nan.h>
-#include "loop.h"
 
 namespace gir {
 
@@ -11,11 +11,11 @@ struct uv_loop_source {
     uv_loop_t *loop;
 };
 
-static gboolean uv_loop_source_prepare (GSource *base, int *timeout) {
-    struct uv_loop_source *source = (struct uv_loop_source *) base;
-    uv_update_time (source->loop);
+static gboolean uv_loop_source_prepare(GSource *base, int *timeout) {
+    struct uv_loop_source *source = (struct uv_loop_source *)base;
+    uv_update_time(source->loop);
 
-    bool loop_alive = uv_loop_alive (source->loop);
+    bool loop_alive = uv_loop_alive(source->loop);
 
     /* If the loop is dead, we can simply sleep forever until a GTK+ source
      * (presumably) wakes us back up again. */
@@ -24,7 +24,7 @@ static gboolean uv_loop_source_prepare (GSource *base, int *timeout) {
 
     /* Otherwise, check the timeout. If the timeout is 0, that means we're
      * ready to go. Otherwise, keep sleeping until the timeout happens again. */
-    int t = uv_backend_timeout (source->loop);
+    int t = uv_backend_timeout(source->loop);
     *timeout = t;
 
     if (t == 0)
@@ -41,7 +41,8 @@ static gboolean uv_loop_source_prepare (GSource *base, int *timeout) {
 static void call_next_tick_callback() {
     Nan::HandleScope scope;
     // get "process" from node's global scope
-    v8::Local<v8::Value> process_value = Nan::GetCurrentContext()->Global()->Get(Nan::New<v8::String>("process").ToLocalChecked());
+    v8::Local<v8::Value> process_value =
+        Nan::GetCurrentContext()->Global()->Get(Nan::New<v8::String>("process").ToLocalChecked());
     if (process_value->IsObject()) {
         // if it's a JS object, the type cast it to a Local<Object>.
         v8::Local<v8::Object> process_object = process_value->ToObject();
@@ -55,10 +56,10 @@ static void call_next_tick_callback() {
     }
 }
 
-static gboolean uv_loop_source_dispatch (GSource *base, GSourceFunc callback, gpointer user_data) {
-    struct uv_loop_source *source = (struct uv_loop_source *) base;
+static gboolean uv_loop_source_dispatch(GSource *base, GSourceFunc callback, gpointer user_data) {
+    struct uv_loop_source *source = (struct uv_loop_source *)base;
     Nan::HandleScope scope;
-    uv_run (source->loop, UV_RUN_NOWAIT);
+    uv_run(source->loop, UV_RUN_NOWAIT);
     call_next_tick_callback();
     return G_SOURCE_CONTINUE;
 }
@@ -69,22 +70,21 @@ static GSourceFuncs uv_loop_source_funcs = {
     uv_loop_source_dispatch,
     NULL,
 
-    NULL, NULL,
+    NULL,
+    NULL,
 };
 
-static GSource *uv_loop_source_new (uv_loop_t *loop) {
-    struct uv_loop_source *source = (struct uv_loop_source *) g_source_new (&uv_loop_source_funcs, sizeof (*source));
+static GSource *uv_loop_source_new(uv_loop_t *loop) {
+    struct uv_loop_source *source = (struct uv_loop_source *)g_source_new(&uv_loop_source_funcs, sizeof(*source));
     source->loop = loop;
-    g_source_add_unix_fd (&source->source,
-                          uv_backend_fd (loop),
-                          (GIOCondition) (G_IO_IN | G_IO_OUT | G_IO_ERR));
+    g_source_add_unix_fd(&source->source, uv_backend_fd(loop), (GIOCondition)(G_IO_IN | G_IO_OUT | G_IO_ERR));
     return &source->source;
 }
 
-void StartLoop(const Nan::FunctionCallbackInfo<v8::Value>& info) {
-    GSource *source = uv_loop_source_new (uv_default_loop ());
-    g_source_attach (source, NULL);
+void StartLoop(const Nan::FunctionCallbackInfo<v8::Value> &info) {
+    GSource *source = uv_loop_source_new(uv_default_loop());
+    g_source_attach(source, NULL);
     info.GetReturnValue().Set(Nan::Undefined());
 }
 
-};
+}; // namespace gir

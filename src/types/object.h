@@ -1,12 +1,12 @@
 #pragma once
 
-#include <vector>
-#include <set>
-#include <map>
-#include <v8.h>
-#include <nan.h>
-#include <glib.h>
 #include <girepository.h>
+#include <glib.h>
+#include <nan.h>
+#include <v8.h>
+#include <map>
+#include <set>
+#include <vector>
 
 namespace gir {
 
@@ -35,10 +35,9 @@ struct InstanceData {
     GIRObject *obj;
 };
 
-
 class GIRObject : public Nan::ObjectWrap {
-  public:
-    GIRObject() {};
+public:
+    GIRObject(){};
     GIRObject(GIObjectInfo *info_, map<string, GValue> &properties);
     virtual ~GIRObject();
 
@@ -54,15 +53,13 @@ class GIRObject : public Nan::ObjectWrap {
 
     static Local<Object> prepare(GIObjectInfo *object_info);
     static void register_methods(GIObjectInfo *object_info,
-                                                                  const char *namespace_,
-                                                                  Local<FunctionTemplate> &object_template);
-    static void set_custom_fields(Local<FunctionTemplate> &object_template,
-                                                                    GIObjectInfo *object_info);
+                                 const char *namespace_,
+                                 Local<FunctionTemplate> &object_template);
+    static void set_custom_fields(Local<FunctionTemplate> &object_template, GIObjectInfo *object_info);
     static void set_custom_prototype_methods(
 
         Local<FunctionTemplate> &object_template);
-    static void extend_parent(Local<FunctionTemplate> &object_template,
-                                                            GIObjectInfo *object_info);
+    static void extend_parent(Local<FunctionTemplate> &object_template, GIObjectInfo *object_info);
 
     static void initialize(Local<Object> target, char *namespace_);
 
@@ -75,13 +72,13 @@ class GIRObject : public Nan::ObjectWrap {
     static NAN_METHOD(Disconnect);
 
     static MaybeLocal<Value> get_instance(GObject *obj);
-    static ObjectFunctionTemplate  *create_object_template(
+    static ObjectFunctionTemplate *create_object_template(
 
         GIObjectInfo *object_info);
-    static ObjectFunctionTemplate  *find_template_from_object_info(
+    static ObjectFunctionTemplate *find_template_from_object_info(
 
         GIObjectInfo *object_info);
-    static ObjectFunctionTemplate  *find_or_create_template_from_object_info(
+    static ObjectFunctionTemplate *find_or_create_template_from_object_info(
 
         GIObjectInfo *object_info);
 
@@ -92,9 +89,8 @@ class GIRObject : public Nan::ObjectWrap {
     static GIFunctionInfo *find_signal(GIObjectInfo *inf, char *name);
     static GIFunctionInfo *find_v_func(GIObjectInfo *inf, char *name);
 
-    private:
-    static void set_method(Local<FunctionTemplate> &target,
-                                                      GIFunctionInfo *function_info);
+private:
+    static void set_method(Local<FunctionTemplate> &target, GIFunctionInfo *function_info);
 
     static Local<ObjectTemplate> property_list(GIObjectInfo *info);
     static Local<ObjectTemplate> method_list(GIObjectInfo *info);
@@ -102,11 +98,11 @@ class GIRObject : public Nan::ObjectWrap {
     static Local<ObjectTemplate> field_list(GIObjectInfo *info);
     static Local<ObjectTemplate> signal_list(GIObjectInfo *info);
     static Local<ObjectTemplate> v_func_list(GIObjectInfo *info);
-    static GType get_object_property_type(GIObjectInfo *object_info,
-                                                                                    const char *property_name);
+    static GType get_object_property_type(GIObjectInfo *object_info, const char *property_name);
     static map<string, GValue> parse_constructor_argument(
 
-        Local<Object> properties_object, GIObjectInfo *object_info);
+        Local<Object> properties_object,
+        GIObjectInfo *object_info);
 };
 
-}
+} // namespace gir
