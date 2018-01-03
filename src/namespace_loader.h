@@ -1,29 +1,19 @@
 #pragma once
 
-#include <girepository.h>
-#include <glib.h>
 #include <nan.h>
 #include <v8.h>
-#include <map>
 
 namespace gir {
 
+using namespace v8;
+
 class NamespaceLoader : public Nan::ObjectWrap {
 public:
-    static GIRepository *repo;
-    static std::map<char *, GITypelib *> type_libs;
-
     static NAN_METHOD(Load);
-    static NAN_METHOD(SearchPath);
 
 private:
-    static v8::Handle<v8::Value> load_namespace(char *namespace_, char *version);
-    static v8::Handle<v8::Value> build_classes(char *namespace_);
-
-    static void parse_struct(GIStructInfo *info, v8::Handle<v8::Object> &exports);
-    static void parse_interface(GIInterfaceInfo *info, v8::Handle<v8::Object> &exports);
-    static void parse_union(GIUnionInfo *info, v8::Handle<v8::Object> &exports);
-    static void parse_function(GIFunctionInfo *info, v8::Handle<v8::Object> &exports);
+    static Local<Value> load_namespace(const char *library_namespace, const char *version);
+    static Local<Value> build_exports(const char *library_namespace);
 };
 
 } // namespace gir

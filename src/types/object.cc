@@ -68,7 +68,7 @@ Local<Value> GIRObject::from_existing(GObject *existing_gobject, GType gobject_t
         return existing_gir_object.ToLocalChecked();
     }
 
-    GIObjectInfo *object_info = (GIObjectInfo *)g_irepository_find_by_gtype(NamespaceLoader::repo, gobject_type);
+    GIObjectInfo *object_info = g_irepository_find_by_gtype(g_irepository_get_default(), gobject_type);
     if (!GI_IS_OBJECT_INFO(object_info)) {
         // TODO: FIXME:
         // log error?

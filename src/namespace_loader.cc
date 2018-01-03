@@ -11,10 +11,6 @@
 namespace gir {
 
 using namespace std;
-using namespace v8;
-
-GIRepository *NamespaceLoader::repo = nullptr;
-std::map<char *, GITypelib *> NamespaceLoader::type_libs;
 
 NAN_METHOD(NamespaceLoader::Load) {
     if (info.Length() < 1) {
@@ -23,69 +19,57 @@ NAN_METHOD(NamespaceLoader::Load) {
     if (!info[0]->IsString()) {
         Nan::ThrowError("argument has to be a string");
     }
-
     Local<Value> exports;
-    String::Utf8Value namespace_(info[0]);
-
+    String::Utf8Value library_namespace(info[0]);
     if (info.Length() > 1 && info[1]->IsString()) {
         String::Utf8Value version(info[1]);
-        exports = NamespaceLoader::load_namespace(*namespace_, *version);
+        exports = NamespaceLoader::load_namespace(*library_namespace, *version);
     } else {
-        exports = NamespaceLoader::load_namespace(*namespace_, nullptr);
+        exports = NamespaceLoader::load_namespace(*library_namespace, nullptr);
     }
-
     info.GetReturnValue().Set(exports);
 }
 
-Handle<Value> NamespaceLoader::load_namespace(char *namespace_, char *version) {
-    if (!repo) {
-        repo = g_irepository_get_default();
+Handle<Value> NamespaceLoader::load_namespace(const char *library_namespace, const char *version) {
+    auto repository = g_irepository_get_default();
+    GError *error = nullptr;
+    g_irepository_require(repository, library_namespace, version, (GIRepositoryLoadFlags)0, &error);
+    if (error != nullptr) {
+        Nan::ThrowError(error->message);
+        g_error_free(error);
+        return Nan::Undefined();
     }
-
-    GError *er = nullptr;
-    GITypelib *lib = g_irepository_require(repo, namespace_, version, (GIRepositoryLoadFlags)0, &er);
-    if (!lib) {
-        Nan::ThrowError(er->message);
-    }
-
-    type_libs.insert(std::make_pair(namespace_, lib));
-
-    Handle<Value> res = build_classes(namespace_);
-    return res;
+    return NamespaceLoader::build_exports(library_namespace);
 }
 
-Handle<Value> NamespaceLoader::build_classes(char *namespace_) {
+Handle<Value> NamespaceLoader::build_exports(const char *library_namespace) {
+    auto repository = g_irepository_get_default();
     Handle<Object> module = Nan::New<Object>();
     Local<Value> exported_value = Nan::Null();
 
-    int length = g_irepository_get_n_infos(repo, namespace_);
+    int length = g_irepository_get_n_infos(repository, library_namespace);
     for (int i = 0; i < length; i++) {
-        GIBaseInfo *info = g_irepository_get_info(repo, namespace_, i);
+        GIBaseInfo *info = g_irepository_get_info(repository, library_namespace, i); // FIXME: use GIRInfoUniquePtr
 
         switch (g_base_info_get_type(info)) {
-            case GI_INFO_TYPE_BOXED:
-                // FIXME: GIStructInfo or GIUnionInfo
-            case GI_INFO_TYPE_STRUCT:
-                exported_value = GIRStruct::prepare((GIStructInfo *)info);
-                break;
-            case GI_INFO_TYPE_ENUM:
-                exported_value = GIREnum::prepare((GIEnumInfo *)info);
-                break;
-            case GI_INFO_TYPE_FLAGS:
-                exported_value = GIREnum::prepare((GIEnumInfo *)info);
-                break;
             case GI_INFO_TYPE_OBJECT:
-                exported_value = GIRObject::prepare((GIObjectInfo *)info);
-                break;
-            case GI_INFO_TYPE_INTERFACE:
-                parse_interface((GIInterfaceInfo *)info, module);
-                break;
-            case GI_INFO_TYPE_UNION:
-                parse_union((GIUnionInfo *)info, module);
+                exported_value = GIRObject::prepare(info);
                 break;
             case GI_INFO_TYPE_FUNCTION:
-                GIRFunction::initialize(module, (GIFunctionInfo *)info);
+                exported_value = GIRFunction::prepare(info);
                 break;
+            case GI_INFO_TYPE_BOXED:
+            case GI_INFO_TYPE_STRUCT:
+                exported_value = GIRStruct::prepare(info);
+                break;
+            case GI_INFO_TYPE_ENUM:
+                exported_value = GIREnum::prepare(info);
+                break;
+            case GI_INFO_TYPE_FLAGS:
+                exported_value = GIREnum::prepare(info);
+                break;
+            case GI_INFO_TYPE_UNION:
+            case GI_INFO_TYPE_INTERFACE:
             case GI_INFO_TYPE_INVALID:
             case GI_INFO_TYPE_CALLBACK:
             case GI_INFO_TYPE_CONSTANT:
@@ -98,44 +82,20 @@ Handle<Value> NamespaceLoader::build_classes(char *namespace_) {
             case GI_INFO_TYPE_ARG:
             case GI_INFO_TYPE_TYPE:
             case GI_INFO_TYPE_UNRESOLVED:
-                // Do nothing
+                // do nothing
                 break;
         }
 
         if (exported_value != Nan::Null()) {
-            module->Set(Nan::New(g_base_info_get_name(info)).ToLocalChecked(), exported_value);
+            string exported_name = Util::base_info_canonical_name(info);
+            module->Set(Nan::New(exported_name).ToLocalChecked(), exported_value);
             exported_value = Nan::Null();
         }
 
         g_base_info_unref(info);
     }
 
-    // when all classes have been created we can inherit them
-    GIRStruct::initialize(module, namespace_);
-
     return module;
-}
-
-void NamespaceLoader::parse_struct(GIStructInfo *info, Handle<Object> &exports) {}
-
-void NamespaceLoader::parse_interface(GIInterfaceInfo *info, Handle<Object> &exports) {}
-
-void NamespaceLoader::parse_union(GIUnionInfo *info, Handle<Object> &exports) {}
-
-NAN_METHOD(NamespaceLoader::SearchPath) {
-    if (!repo) {
-        repo = g_irepository_get_default();
-    }
-    GSList *ls = g_irepository_get_search_path();
-    int l = g_slist_length(ls);
-    Local<Array> res = Nan::New<Array>(l);
-
-    for (int i = 0; i < l; i++) {
-        gpointer p = g_slist_nth_data(ls, i);
-        Nan::Set(res, Nan::New(i), Nan::New((gchar *)p).ToLocalChecked());
-    }
-
-    info.GetReturnValue().Set(res);
 }
 
 } // namespace gir

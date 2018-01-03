@@ -32,10 +32,12 @@ struct GIBaseInfoDeleter {
 using GIRInfoUniquePtr = unique_ptr<GIBaseInfo, GIBaseInfoDeleter>;
 
 namespace Util {
+
 gchar *utf8StringFromValue(v8::Handle<v8::Value> value);
 string toCamelCase(const string input);
 string toSnakeCase(const string input);
 void toUpperCase(string &input);
+string base_info_canonical_name(GIBaseInfo *base_info);
 
 /**
  * this uses the same underlying values as the string_vector

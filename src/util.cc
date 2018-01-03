@@ -98,6 +98,11 @@ void toUpperCase(string &input) {
     transform(input.begin(), input.end(), input.begin(), [](unsigned char character) { return toupper(character); });
 }
 
+string base_info_canonical_name(GIBaseInfo *base_info) {
+    const gchar *original_name = g_base_info_get_name(base_info);
+    return toCamelCase(string(original_name));
+}
+
 // TODO: I think this can segfault the caller because of c_str().
 vector<const char *> stringsToCStrings(vector<string> &string_vector) {
     vector<const char *> c_string_vector;

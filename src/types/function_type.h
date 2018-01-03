@@ -8,11 +8,12 @@
 
 namespace gir {
 
+using namespace v8;
+
 class GIRFunction : public Nan::ObjectWrap {
 public:
     GIRFunction() = default;
-
-    static void initialize(v8::Handle<v8::Object> target, GIObjectInfo *info);
+    static Local<Function> prepare(GIFunctionInfo *info);
 };
 
 } // namespace gir
