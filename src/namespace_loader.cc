@@ -1,8 +1,7 @@
 #include "namespace_loader.h"
 #include "util.h"
-
 #include "types/enum.h"
-#include "types/function_type.h"
+#include "types/function.h"
 #include "types/object.h"
 #include "types/struct.h"
 

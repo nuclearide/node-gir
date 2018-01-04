@@ -1,15 +1,14 @@
 #include <iostream>
+#include <cstring>
 
-#include "../arguments.h"
-#include "../function.h"
-#include "../util.h"
-#include "../values.h"
-#include "function_type.h"
+#include "arguments.h"
+#include "function.h"
+#include "util.h"
+#include "values.h"
 #include "struct.h"
 
 #include <nan.h>
 #include <node.h>
-#include <cstring>
 
 using namespace v8;
 using namespace std;
@@ -75,7 +74,7 @@ NAN_METHOD(GIRStruct::New) {
     args.load_js_arguments(info);
 
     Nan::TryCatch exception_handler;
-    GIArgument retval = Func::call_native(func, args);
+    GIArgument retval = GIRFunction::call_native(func, args);
     if (exception_handler.HasCaught()) {
         exception_handler.ReThrow();
         info.GetReturnValue().Set(Nan::Undefined());
@@ -260,7 +259,7 @@ NAN_METHOD(GIRStruct::CallMethod) {
     Local<External> function_info_extern = Local<External>::Cast(info.Data());
     GIFunctionInfo *function_info = (GIFunctionInfo *)function_info_extern->Value();
     GIRStruct *that = Nan::ObjectWrap::Unwrap<GIRStruct>(info.This()->ToObject());
-    Local<Value> result = Func::call((GObject *)that->c_structure, function_info, info);
+    Local<Value> result = GIRFunction::call((GObject *)that->c_structure, function_info, info);
     info.GetReturnValue().Set(result);
 }
 
@@ -338,10 +337,10 @@ void GIRStruct::register_methods(GIStructInfo *info, const char *namespace_, Han
         GIFunctionInfoFlags func_flag = g_function_info_get_flags(func);
 
         if ((func_flag & GI_FUNCTION_IS_CONSTRUCTOR)) {
-            Local<FunctionTemplate> callback_func = Func::create_function(func);
+            Local<FunctionTemplate> callback_func = GIRFunction::create_function(func);
             object_template->Set(function_name, callback_func);
         } else {
-            // TODO: refactor Func::CreateMethod() to support more than GIRObject so
+            // TODO: refactor GIRFunction::CreateMethod() to support more than GIRObject so
             // we can reuse that logic in here and keep is DRY!
             Local<External> function_info_extern = Nan::New<External>((void *)g_base_info_ref(func));
             Local<FunctionTemplate> method_template = Nan::New<FunctionTemplate>(GIRStruct::CallMethod,

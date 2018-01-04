@@ -7,11 +7,10 @@
                 'src/util.cc',
                 'src/namespace_loader.cc',
                 'src/arguments.cc',
-                'src/function.cc',
                 'src/values.cc',
                 'src/types/object.cc',
                 'src/types/struct.cc',
-                'src/types/function_type.cc',
+                'src/types/function.cc',
                 'src/types/enum.cc',
                 'src/loop.cc',
                 'src/signal_closure.cc'
@@ -34,7 +33,8 @@
                 ]
             ],
             'include_dirs': [
-                '<!(node -e "require(\'nan\')")'
+                '<!(node -e "require(\'nan\')")',
+                'src'
             ],
             'cflags': [
                 '-std=c++11',

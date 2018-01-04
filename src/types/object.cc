@@ -1,12 +1,11 @@
 #include <iostream>
 #include <string>
 
-#include "../function.h"
+#include "./function.h"
 #include "../namespace_loader.h"
 #include "../signal_closure.h"
 #include "../util.h"
 #include "../values.h"
-#include "function_type.h"
 #include "object.h"
 
 #include <node.h>
@@ -288,11 +287,11 @@ void GIRObject::set_method(Local<FunctionTemplate> &target, GIFunctionInfo *func
     if (g_function_info_get_flags(function_info) & GI_FUNCTION_IS_METHOD) {
         // if the function is a method, then we want to set it on the prototype
         // of the target, as a GI_FUNCTION_IS_METHOD is an instance method.
-        target->PrototypeTemplate()->Set(js_function_name, Func::create_method(function_info));
+        target->PrototypeTemplate()->Set(js_function_name, GIRFunction::create_method(function_info));
     } else {
         // else if it's not a method, then we want to set it as a static function
         // on the target itself (not the prototype)
-        target->Set(js_function_name, Func::create_function(function_info));
+        target->Set(js_function_name, GIRFunction::create_function(function_info));
     }
 }
 

@@ -1,38 +1,55 @@
 #include "function.h"
-#include <nan.h>
-#include <vector>
-#include "exceptions.h"
+#include "namespace_loader.h"
 #include "util.h"
+#include "exceptions.h"
+#include "object.h"
 
-#include "types/object.h"
+#include <nan.h>
+#include <node.h>
+#include <cstring>
 
+using namespace std;
 using namespace v8;
 
 namespace gir {
 
-Local<FunctionTemplate> Func::create_function(GIFunctionInfo *function_info) {
+Local<Function> GIRFunction::prepare(GIFunctionInfo *function_info) {
+    // Create new function
+    Local<FunctionTemplate> js_function_template = GIRFunction::create_function(function_info);
+    Local<Function> js_function = js_function_template->GetFunction();
+
+    // Set the function name
+    const char *native_name = g_base_info_get_name(function_info);
+    string js_name = Util::to_camel_case(string(native_name));
+    js_function->SetName(Nan::New(js_name.c_str()).ToLocalChecked());
+
+    return js_function;
+}
+
+
+Local<FunctionTemplate> GIRFunction::create_function(GIFunctionInfo *function_info) {
     Local<External> function_info_extern = Nan::New<External>((void *)g_base_info_ref(function_info));
-    Local<FunctionTemplate> function_template = Nan::New<FunctionTemplate>(Func::InvokeFunction, function_info_extern);
+    Local<FunctionTemplate> function_template = Nan::New<FunctionTemplate>(GIRFunction::InvokeFunction, function_info_extern);
     return function_template;
 }
 
 // FIXME: this needs to be refactored to support anyone creating a function
 // that executes the native function specified by GIFunctionInfo with a given GObject
-// not just GIRObject's as is the case currently with Func::InvokeMethod!
-Local<FunctionTemplate> Func::create_method(GIFunctionInfo *function_info) {
+// not just GIRObject's as is the case currently with GIRFunction::InvokeMethod!
+Local<FunctionTemplate> GIRFunction::create_method(GIFunctionInfo *function_info) {
     Local<External> function_info_extern = Nan::New<External>((void *)g_base_info_ref(function_info));
-    Local<FunctionTemplate> function_template = Nan::New<FunctionTemplate>(Func::InvokeMethod, function_info_extern);
+    Local<FunctionTemplate> function_template = Nan::New<FunctionTemplate>(GIRFunction::InvokeMethod, function_info_extern);
     return function_template;
 }
 
-NAN_METHOD(Func::InvokeFunction) {
+NAN_METHOD(GIRFunction::InvokeFunction) {
     Local<External> function_info_extern = Local<External>::Cast(info.Data());
     GIFunctionInfo *function_info = (GIFunctionInfo *)function_info_extern->Value();
-    Local<Value> js_func_result = Func::call(nullptr, function_info, info);
+    Local<Value> js_func_result = GIRFunction::call(nullptr, function_info, info);
     info.GetReturnValue().Set(js_func_result);
 }
 
-NAN_METHOD(Func::InvokeMethod) {
+NAN_METHOD(GIRFunction::InvokeMethod) {
     if (!info.This()->IsObject()) {
         Nan::ThrowTypeError("the value of 'this' is not an object");
         return;
@@ -43,11 +60,11 @@ NAN_METHOD(Func::InvokeMethod) {
     Local<External> function_info_extern = Local<External>::Cast(info.Data());
     GIFunctionInfo *function_info = (GIFunctionInfo *)function_info_extern->Value();
 
-    Local<Value> js_func_result = Func::call(native_object, function_info, info);
+    Local<Value> js_func_result = GIRFunction::call(native_object, function_info, info);
     info.GetReturnValue().Set(js_func_result);
 }
 
-GIArgument Func::call_native(GIFunctionInfo *function_info, Args &args) {
+GIArgument GIRFunction::call_native(GIFunctionInfo *function_info, Args &args) {
     GIArgument return_value;
     GError *error = nullptr;
 
@@ -70,7 +87,7 @@ GIArgument Func::call_native(GIFunctionInfo *function_info, Args &args) {
     return return_value;
 }
 
-Local<Value> Func::call(GObject *obj,
+Local<Value> GIRFunction::call(GObject *obj,
                         GIFunctionInfo *function_info,
                         const Nan::FunctionCallbackInfo<v8::Value> &js_callback_info) {
     // we want to catch any errors we may encounter so we can throw them as JS
@@ -89,12 +106,12 @@ Local<Value> Func::call(GObject *obj,
 
         // call the native function. CallNative is just a small wrapper to help with
         // handling native errors and return values.
-        GIArgument result = Func::call_native(function_info, args);
+        GIArgument result = GIRFunction::call_native(function_info, args);
 
         // handle the return value that we should pass back to JS.
         // there are some rules to decide how to handle there output from the native
         // function so we'll use a helper function to handle that logic for us.
-        Local<Value> js_return_value = Func::js_return_value_from_native_call(function_info, args, result);
+        Local<Value> js_return_value = GIRFunction::js_return_value_from_native_call(function_info, args, result);
         return js_return_value;
     } catch (exception &error) {
         // if any exception happens we want to translate it to a JS error and return
@@ -116,7 +133,7 @@ Local<Value> Func::call(GObject *obj,
  * - If the native function has a return value and 1 or more out-args then return them as an array with the return value
  * in position 0: [return-value, out-arg-1, out-arg-2, ..., out-arg-n]
  */
-Local<Value> Func::js_return_value_from_native_call(GIFunctionInfo *function_info,
+Local<Value> GIRFunction::js_return_value_from_native_call(GIFunctionInfo *function_info,
                                                     Args &args,
                                                     GIArgument &native_call_result) {
     // load the function's return type info

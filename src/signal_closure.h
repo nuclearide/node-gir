@@ -4,7 +4,7 @@
 #include <nan.h>
 #include <node.h>
 #include <string>
-#include "./types/object.h"
+#include "types/object.h"
 
 namespace gir {
 
