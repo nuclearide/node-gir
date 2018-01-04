@@ -19,7 +19,7 @@ Local<Function> GIRFunction::prepare(GIFunctionInfo *function_info) {
 
     // Set the function name
     const char *native_name = g_base_info_get_name(function_info);
-    string js_name = Util::toCamelCase(string(native_name));
+    string js_name = Util::to_camel_case(string(native_name));
     js_function->SetName(Nan::New(js_name.c_str()).ToLocalChecked());
 
     return js_function;

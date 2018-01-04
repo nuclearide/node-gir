@@ -1,5 +1,4 @@
-#ifndef UTIL_H
-#define UTIL_H
+#pragma once
 
 #include <girepository.h>
 #include <glib.h>
@@ -8,14 +7,16 @@
 #include <string>
 #include <vector>
 
-using namespace std;
-
-extern "C" void debug_printf(const char *fmt, ...);
-
 namespace gir {
 
+using namespace std;
+
 struct GIBaseInfoDeleter {
-    void operator()(GIBaseInfo *info) const;
+    void operator()(GIBaseInfo *info) const {
+        if (info) {
+            g_base_info_unref(info);
+        }
+    }
 };
 
 /**
@@ -33,18 +34,17 @@ using GIRInfoUniquePtr = unique_ptr<GIBaseInfo, GIBaseInfoDeleter>;
 
 namespace Util {
 
-gchar *utf8StringFromValue(v8::Handle<v8::Value> value);
-string toCamelCase(const string input);
-string toSnakeCase(const string input);
-void toUpperCase(string &input);
+string to_camel_case(const string input);
+string to_snake_case(const string input);
 string base_info_canonical_name(GIBaseInfo *base_info);
+void to_upper_case(string &input);
 
 /**
  * this uses the same underlying values as the string_vector
  * i.e. it does not copy the data! the output of this function
  * should not be mutated!
  */
-vector<const char *> stringsToCStrings(vector<string> &string_vector);
+vector<const char *> strings_to_cstrings(vector<string> &string_vector);
 
 template<typename TK, typename TV>
 vector<TK> extract_keys(map<TK, TV> &input_map) {
@@ -68,5 +68,3 @@ vector<TV> extract_values(map<TK, TV> &input_map) {
 } // namespace Util
 
 } // namespace gir
-
-#endif

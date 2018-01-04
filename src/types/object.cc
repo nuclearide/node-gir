@@ -33,7 +33,7 @@ GIRObject::GIRObject(GIObjectInfo *object_info, map<string, GValue> &properties)
 #if GLIB_CHECK_VERSION(2, 54, 0)
         vector<string> property_names = Util::extract_keys(properties);
         vector<GValue> property_values = Util::extract_values(properties);
-        vector<const char *> property_names_cstr = Util::stringsToCStrings(property_names);
+        vector<const char *> property_names_cstr = Util::strings_to_cstrings(property_names);
         this->obj = g_object_new_with_properties(object_type,
                                                  properties.size(),
                                                  property_names_cstr.data(),
@@ -283,7 +283,7 @@ void GIRObject::register_methods(GIObjectInfo *object_info,
  */
 void GIRObject::set_method(Local<FunctionTemplate> &target, GIFunctionInfo *function_info) {
     const char *native_name = g_base_info_get_name(function_info);
-    string js_name = Util::toCamelCase(std::string(native_name));
+    string js_name = Util::to_camel_case(std::string(native_name));
     Local<String> js_function_name = Nan::New(js_name.c_str()).ToLocalChecked();
     if (g_function_info_get_flags(function_info) & GI_FUNCTION_IS_METHOD) {
         // if the function is a method, then we want to set it on the prototype

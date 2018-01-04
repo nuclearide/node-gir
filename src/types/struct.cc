@@ -338,7 +338,7 @@ void GIRStruct::register_methods(GIStructInfo *info, const char *namespace_, Han
     for (int i = 0; i < number_of_methods; i++) {
         GIFunctionInfo *func = g_struct_info_get_method(info, i);
         const char *native_func_name = g_base_info_get_name(func);
-        string js_func_name = Util::toCamelCase(string(native_func_name));
+        string js_func_name = Util::to_camel_case(string(native_func_name));
         Local<String> function_name = Nan::New(js_func_name.c_str()).ToLocalChecked();
         GIFunctionInfoFlags func_flag = g_function_info_get_flags(func);
 

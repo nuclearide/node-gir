@@ -1,5 +1,4 @@
-#ifndef SIGNAL_CLOSURE_H
-#define SIGNAL_CLOSURE_H
+#pragma once
 
 #include <girepository.h>
 #include <nan.h>
@@ -39,5 +38,3 @@ private:
 };
 
 } // namespace gir
-
-#endif
