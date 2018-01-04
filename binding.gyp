@@ -3,17 +3,17 @@
         {
             'target_name': 'girepository',
             'sources': [
-                'src/main.cc',
-                'src/util.cc',
-                'src/namespace_loader.cc',
-                'src/arguments.cc',
-                'src/values.cc',
-                'src/types/object.cc',
-                'src/types/struct.cc',
-                'src/types/function.cc',
-                'src/types/enum.cc',
-                'src/loop.cc',
-                'src/signal_closure.cc'
+                'src/main.cpp',
+                'src/util.cpp',
+                'src/namespace_loader.cpp',
+                'src/arguments.cpp',
+                'src/values.cpp',
+                'src/types/object.cpp',
+                'src/types/struct.cpp',
+                'src/types/function.cpp',
+                'src/types/enum.cpp',
+                'src/loop.cpp',
+                'src/signal_closure.cpp'
             ],
             'conditions': [
                 ['OS=="linux"',

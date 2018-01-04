@@ -9,7 +9,7 @@ const { Gtk } = require('../');
  * due to the test blocking (when the loop integration doesn't work!).
  *
  * So if your tests aren't halting, and this file contains the tests that never halt,
- * then the reason is likely the event loop integration in `src/loop.cc`.
+ * then the reason is likely the event loop integration in `src/loop.cpp`.
  */
 describe('Gtk main loop integration', () => {
   test('it should not block setTimeout from popping', (done) => {
