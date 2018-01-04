@@ -1,5 +1,7 @@
 # node-gir
 
+[![CircleCI](https://circleci.com/gh/Place1/node-gir/tree/master.svg?style=svg)](https://circleci.com/gh/Place1/node-gir/tree/master)
+
 Node-gir is Node.js bindings to [GObject Introspection](https://live.gnome.org/GObjectIntrospection/) making it possible to make automatic and dynamic calls to any library that has GI annotations installed. This includes most libraries from the [GNOME project](http://developer.gnome.org/).
 
 This will make it possible to script a GNOME desktop system entirely from node much in the way it's done today with Seed, GJS or pygtk. It also allows using GNOME libraries in Node.js applications. With it you can also write the performance-intensive parts of your applications [in Vala](https://github.com/antono/vala-object) and call them from Node.js and other languages.
