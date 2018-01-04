@@ -123,10 +123,6 @@ NAN_PROPERTY_GETTER(FieldGetHandler) {
             0,
         };
         Local<Value> res;
-        debug_printf("GetHandler [%p] (Get structure member) '%s.%s' \n",
-                     that->c_structure,
-                     g_base_info_get_name(base_info),
-                     *_name);
         GITypeInfo *type_info = g_field_info_get_type(field_info);
         if (g_field_info_get_field(field_info, that->c_structure, &arg) == TRUE) {
             res = Args::from_g_type(&arg, type_info, -1);
@@ -147,7 +143,6 @@ NAN_PROPERTY_GETTER(FieldGetHandler) {
 
 NAN_PROPERTY_QUERY(FieldQueryHandler) {
     String::Utf8Value _name(property);
-    debug_printf("QUERY HANDLER '%s' \n", *_name);
     info.GetReturnValue().Set(Nan::New<v8::Integer>(0));
 }
 

@@ -376,8 +376,6 @@ NAN_PROPERTY_SETTER(GIRObject::property_set_handler) {
                 Nan::ThrowTypeError("property is not writable");
             }
 
-            debug_printf("SetHandler (Set property) '%s.%s' \n", G_OBJECT_TYPE_NAME(that->obj), *_name);
-
             GValue gvalue = {0, {{0}}};
             bool value_is_set = GIRValue::to_g_value(value, pspec->value_type, &gvalue);
             g_object_set_property(G_OBJECT(that->obj), *_name, &gvalue);
