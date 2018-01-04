@@ -1,11 +1,11 @@
-#include <iostream>
 #include <cstring>
+#include <iostream>
 
 #include "arguments.h"
 #include "function.h"
+#include "struct.h"
 #include "util.h"
 #include "values.h"
-#include "struct.h"
 
 #include <nan.h>
 #include <node.h>

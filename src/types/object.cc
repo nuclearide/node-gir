@@ -1,11 +1,11 @@
 #include <iostream>
 #include <string>
 
-#include "./function.h"
 #include "../namespace_loader.h"
 #include "../signal_closure.h"
 #include "../util.h"
 #include "../values.h"
+#include "./function.h"
 #include "object.h"
 
 #include <node.h>

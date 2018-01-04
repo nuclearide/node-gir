@@ -1,11 +1,11 @@
 #pragma once
 
-#include "arguments.h"
 #include <girepository.h>
 #include <glib.h>
 #include <nan.h>
 #include <v8.h>
 #include <map>
+#include "arguments.h"
 
 namespace gir {
 

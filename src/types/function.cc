@@ -1,8 +1,8 @@
 #include "function.h"
-#include "namespace_loader.h"
-#include "util.h"
 #include "exceptions.h"
+#include "namespace_loader.h"
 #include "object.h"
+#include "util.h"
 
 #include <nan.h>
 #include <node.h>
@@ -26,10 +26,10 @@ Local<Function> GIRFunction::prepare(GIFunctionInfo *function_info) {
     return js_function;
 }
 
-
 Local<FunctionTemplate> GIRFunction::create_function(GIFunctionInfo *function_info) {
     Local<External> function_info_extern = Nan::New<External>((void *)g_base_info_ref(function_info));
-    Local<FunctionTemplate> function_template = Nan::New<FunctionTemplate>(GIRFunction::InvokeFunction, function_info_extern);
+    Local<FunctionTemplate> function_template = Nan::New<FunctionTemplate>(GIRFunction::InvokeFunction,
+                                                                           function_info_extern);
     return function_template;
 }
 
@@ -38,7 +38,8 @@ Local<FunctionTemplate> GIRFunction::create_function(GIFunctionInfo *function_in
 // not just GIRObject's as is the case currently with GIRFunction::InvokeMethod!
 Local<FunctionTemplate> GIRFunction::create_method(GIFunctionInfo *function_info) {
     Local<External> function_info_extern = Nan::New<External>((void *)g_base_info_ref(function_info));
-    Local<FunctionTemplate> function_template = Nan::New<FunctionTemplate>(GIRFunction::InvokeMethod, function_info_extern);
+    Local<FunctionTemplate> function_template = Nan::New<FunctionTemplate>(GIRFunction::InvokeMethod,
+                                                                           function_info_extern);
     return function_template;
 }
 
@@ -88,8 +89,8 @@ GIArgument GIRFunction::call_native(GIFunctionInfo *function_info, Args &args) {
 }
 
 Local<Value> GIRFunction::call(GObject *obj,
-                        GIFunctionInfo *function_info,
-                        const Nan::FunctionCallbackInfo<v8::Value> &js_callback_info) {
+                               GIFunctionInfo *function_info,
+                               const Nan::FunctionCallbackInfo<v8::Value> &js_callback_info) {
     // we want to catch any errors we may encounter so we can throw them as JS
     // errors
     try {
@@ -134,8 +135,8 @@ Local<Value> GIRFunction::call(GObject *obj,
  * in position 0: [return-value, out-arg-1, out-arg-2, ..., out-arg-n]
  */
 Local<Value> GIRFunction::js_return_value_from_native_call(GIFunctionInfo *function_info,
-                                                    Args &args,
-                                                    GIArgument &native_call_result) {
+                                                           Args &args,
+                                                           GIArgument &native_call_result) {
     // load the function's return type info
     GITypeInfo return_type_info;
     g_callable_info_load_return_type(function_info, &return_type_info);
