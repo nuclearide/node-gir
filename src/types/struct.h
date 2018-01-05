@@ -1,5 +1,6 @@
 #pragma once
 
+#include "util.h"
 #include <girepository.h>
 #include <glib.h>
 #include <nan.h>
@@ -12,59 +13,29 @@ using namespace v8;
 
 class GIRStruct;
 
-using PersistentFunctionTemplate = Nan::Persistent<FunctionTemplate, CopyablePersistentTraits<FunctionTemplate>>;
-using PersistentValue = Nan::Persistent<Value, CopyablePersistentTraits<Value>>;
-
-struct StructFunctionTemplate {
-    char *type_name;
-    GIObjectInfo *info;
-    PersistentFunctionTemplate function;
-    GType type;
-    char *namespace_;
-};
-
-struct StructMarshalData {
-    GIRStruct *that;
-    char *event_name;
-};
-
-struct StructData {
-    PersistentValue instance;
-    GIRStruct *gir_structure;
-};
-
 class GIRStruct : public Nan::ObjectWrap {
 public:
-    GIRStruct(){};
-    GIRStruct(GIObjectInfo *info);
+    gpointer get_native_ptr();
 
-    gpointer c_structure;
-    bool abstract;
-    GIBaseInfo *info;
-
-    static std::vector<StructData> instances;
-    static std::vector<StructFunctionTemplate> templates;
-
-    static v8::Handle<v8::Value> from_existing(gpointer c_structure, GIStructInfo *info);
-    static NAN_METHOD(New);
-
-    static Local<Value> prepare(GIStructInfo *info);
-    static void register_methods(GIStructInfo *info,
-                                 const char *namespace_,
-                                 v8::Handle<v8::FunctionTemplate> object_template);
-
-    static void initialize(v8::Handle<v8::Object> target, char *namespace_);
-
-    static NAN_METHOD(CallMethod);
-
-    static void push_instance(GIRStruct *obj, v8::Handle<v8::Value>);
-    static v8::Handle<v8::Value> get_structure(gpointer c_structure);
+    static Local<Function> prepare(GIStructInfo *info);
+    static Local<Value> from_existing(gpointer c_structure, GIStructInfo *info);
 
 private:
-    static v8::Handle<v8::Object> property_list(GIObjectInfo *info);
-    static v8::Handle<v8::Object> method_list(GIObjectInfo *info);
-    static v8::Handle<v8::Object> interface_list(GIObjectInfo *info);
-    static v8::Handle<v8::Object> field_list(GIObjectInfo *info);
+    gpointer c_structure;
+    GIBaseInfo *info;
+
+    static GIRInfoUniquePtr find_native_constructor(GIStructInfo *struct_info);
+    static void register_methods(GIStructInfo *info,
+                                 const char *namespace_,
+                                 Local<FunctionTemplate> object_template);
+    static NAN_METHOD(constructor);
+    static NAN_METHOD(call_method);
+    static NAN_PROPERTY_GETTER(property_get_handler);
+    static NAN_PROPERTY_SETTER(property_set_handler);
+    static NAN_PROPERTY_QUERY(property_query_handler);
+
+    GIRStruct() = default;
+
 };
 
 } // namespace gir
