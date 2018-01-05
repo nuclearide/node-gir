@@ -21,7 +21,8 @@ gpointer GIRStruct::get_native_ptr() {
 }
 
 Local<Value> GIRStruct::from_existing(gpointer c_structure, GIStructInfo *info) {
-    Local<Function> klass = GIRStruct::prepare(info); // FIXME; we should find_or_prepare to reuse already prepared classes
+    Local<Function> klass = GIRStruct::prepare(
+        info); // FIXME; we should find_or_prepare to reuse already prepared classes
     Local<Object> instance = Nan::NewInstance(klass).ToLocalChecked();
     GIRStruct *gir_struct = Nan::ObjectWrap::Unwrap<GIRStruct>(instance);
     GType gtype = g_registered_type_info_get_g_type(info);
@@ -152,7 +153,9 @@ NAN_PROPERTY_GETTER(GIRStruct::property_get_handler) {
 
     // otherwise we can get the native field's property and return it to JS
     GIArgument native_field_value;
-    bool successfully_retrieved = g_field_info_get_field(field_info.get(), gir_struct->c_structure, &native_field_value);
+    bool successfully_retrieved = g_field_info_get_field(field_info.get(),
+                                                         gir_struct->c_structure,
+                                                         &native_field_value);
     if (!successfully_retrieved) {
         stringstream message;
         message << "reading property '" << g_base_info_get_name(field_info.get()) << "' failed with an unknown error";

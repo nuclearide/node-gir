@@ -217,11 +217,10 @@ bool GIRValue::to_g_value(Handle<Value> value, GType type, GValue *v) {
         case G_TYPE_POINTER:
             break;
 
-        case G_TYPE_BOXED:
-            {
-                GIRStruct *gir_struct = Nan::ObjectWrap::Unwrap<GIRStruct>(value->ToObject());
-                g_value_set_boxed(v, gir_struct->get_native_ptr());
-            }
+        case G_TYPE_BOXED: {
+            GIRStruct *gir_struct = Nan::ObjectWrap::Unwrap<GIRStruct>(value->ToObject());
+            g_value_set_boxed(v, gir_struct->get_native_ptr());
+        }
             return true;
 
         case G_TYPE_PARAM:

@@ -1,11 +1,11 @@
 #pragma once
 
-#include "util.h"
 #include <girepository.h>
 #include <glib.h>
 #include <nan.h>
 #include <v8.h>
 #include <vector>
+#include "util.h"
 
 namespace gir {
 
@@ -25,9 +25,7 @@ private:
     GIBaseInfo *info;
 
     static GIRInfoUniquePtr find_native_constructor(GIStructInfo *struct_info);
-    static void register_methods(GIStructInfo *info,
-                                 const char *namespace_,
-                                 Local<FunctionTemplate> object_template);
+    static void register_methods(GIStructInfo *info, const char *namespace_, Local<FunctionTemplate> object_template);
     static NAN_METHOD(constructor);
     static NAN_METHOD(call_method);
     static NAN_PROPERTY_GETTER(property_get_handler);
@@ -35,7 +33,6 @@ private:
     static NAN_PROPERTY_QUERY(property_query_handler);
 
     GIRStruct() = default;
-
 };
 
 } // namespace gir
