@@ -10,8 +10,10 @@ using namespace v8;
 
 class GIRValue {
 public:
+    static GValue to_g_value(Local<Value> value, GType g_type);
     static Local<Value> from_g_value(GValue *v, GIBaseInfo *base_info);
-    static bool to_g_value(Local<Value> value, GType t, GValue *v);
+
+private:
     static GType guess_type(Local<Value> value);
 };
 

@@ -34,7 +34,7 @@ private:
 
 public:
     static Local<Object> prepare(GIObjectInfo *object_info);
-    static Local<Value> from_existing(GObject *obj, GType t);
+    static Local<Value> from_existing(GObject *obj, GIObjectInfo *object_info);
     GObject *get_gobject();
 
 private:

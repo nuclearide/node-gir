@@ -39,8 +39,8 @@ string to_camel_case(const string input) {
 string to_snake_case(const string input) {
     string output;
     for (auto letter : input) {
-        if (isupper(
-                letter)) { // FIXME: this will break on methods that begin with a capital (i should write a test case!)
+        if (isupper(letter)) { // FIXME: this will break on methods that begin with a capital (i should write a test
+                               // case!)
             output.append(1, '_');
             output.append(1, (char)tolower(letter));
         } else {

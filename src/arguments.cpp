@@ -7,6 +7,7 @@
 #include <vector>
 #include "exceptions.h"
 #include "types/object.h"
+#include "types/struct.h"
 
 using namespace v8;
 
@@ -152,10 +153,16 @@ GIArgument Args::to_g_type(GIArgInfo &argument_info, Local<Value> js_value) {
     argument_value.v_pointer = nullptr;
     argument_value.v_string = nullptr;
 
-    if (js_value->IsNullOrUndefined() &&
-        (g_arg_info_may_be_null(&argument_info) || argument_type_tag == GI_TYPE_TAG_VOID)) {
-        argument_value.v_pointer = nullptr;
-        return argument_value;
+    if (js_value->IsNullOrUndefined()) {
+        if (g_arg_info_may_be_null(&argument_info) || argument_type_tag == GI_TYPE_TAG_VOID) {
+            // we've already set the pointer properties of argument_value
+            // to nullptr so we can just return it now
+            return argument_value;
+        } else {
+            stringstream message;
+            message << "Argument '" << g_base_info_get_name(&argument_info) << "' may not be null or undefined";
+            throw JSArgumentTypeError(message.str());
+        }
     }
 
     try {
@@ -208,8 +215,7 @@ GIArgument Args::to_g_type(GIArgInfo &argument_info, Local<Value> js_value) {
             case GI_TYPE_TAG_FILENAME:
                 if (!js_value->IsString()) {
                     throw JSArgumentTypeError();
-                }
-                {
+                } else {
                     Nan::Utf8String js_string(js_value->ToString());
                     // FIXME: memory leak as we never g_free(.v_string)
                     // ideally the memory would be freed when the GIArgument
@@ -225,106 +231,47 @@ GIArgument Args::to_g_type(GIArgInfo &argument_info, Local<Value> js_value) {
                 }
                 break;
 
-                // case GI_TYPE_TAG_GLIST: // TODO: implement
-                //     if (!js_value->IsArray()) {
-                //         throw JSArgumentTypeError("expected \"array\"");
-                //     }
-                //     //GList *list = nullptr;
-                //     //ArrayToGList(v, info, &list); // FIXME!!!
-                //     break;
-
-                // case GI_TYPE_TAG_GSLIST: // TODO: implement
-                //     if (!js_value->IsArray()) {
-                //         throw JSArgumentTypeError("expected \"array\"");
-                //     }
-                //     //GSList *list = nullptr;
-                //     //ArrayToGList(v, info, &list); // FIXME!!!
-                //     break;
-
-                // case GI_TYPE_TAG_ARRAY: // TODO: implement
-                //     if (!js_value->IsArray()) {
-                //         throw "TODO: js type error";
-                //     }
-
-                //     GIArrayType arr_type = g_type_info_get_array_type(info);
-
-                //     if (arr_type == GI_ARRAY_TYPE_C) {
-
-                //     }
-                //     else if (arr_type == GI_ARRAY_TYPE_ARRAY) {
-
-                //     }
-                //     else if (arr_type == GI_ARRAY_TYPE_PTR_ARRAY) {
-
-                //     }
-                //     else if (arr_type == GI_ARRAY_TYPE_BYTE_ARRAY) {
-
-                //     }
-                //     break;
-
-                // case GI_TYPE_TAG_GHASH: // TODO: implement
-                //     if (!js_value->IsObject()) {
-                //         throw "TODO: js type error";
-                //     }
-
-                //     GITypeInfo *key_param_info, *val_param_info;
-                //     //GHashTable *ghash;
-
-                //     key_param_info = g_type_info_get_param_type(info, 0);
-                //     g_assert(key_param_info != nullptr);
-                //     val_param_info = g_type_info_get_param_type(info, 1);
-                //     g_assert(val_param_info != nullptr);
-
-                //     // TODO: implement
-
-                //     g_base_info_unref((GIBaseInfo*) key_param_info);
-                //     g_base_info_unref((GIBaseInfo*) val_param_info);
-
-                //     break;
-
             case GI_TYPE_TAG_INTERFACE: {
-                GIBaseInfo *interface_info = g_type_info_get_interface(&argument_type_info);
-                GIInfoType interface_type = g_base_info_get_type(interface_info);
+                auto interface_info = GIRInfoUniquePtr(g_type_info_get_interface(&argument_type_info));
+                GIInfoType interface_type = g_base_info_get_type(interface_info.get());
 
-                GType gtype;
                 switch (interface_type) {
-                    case GI_INFO_TYPE_STRUCT:
-                    case GI_INFO_TYPE_ENUM:
                     case GI_INFO_TYPE_OBJECT:
-                    case GI_INFO_TYPE_INTERFACE:
-                    case GI_INFO_TYPE_UNION:
-                    case GI_INFO_TYPE_BOXED:
-                        gtype = g_registered_type_info_get_g_type(interface_info);
+                        // if the interface type is an object, then we expect
+                        // the JS value to be a GIRObject so we can unwrap it
+                        // and pass the GObject pointer to the GIArgument's v_pointer.
+                        if (!js_value->IsObject()) {
+                            throw JSArgumentTypeError();
+                        } else {
+                            GIRObject *gir_object = Nan::ObjectWrap::Unwrap<GIRObject>(js_value->ToObject());
+                            argument_value.v_pointer = gir_object->get_gobject();
+                        }
                         break;
+
                     case GI_INFO_TYPE_VALUE:
-                        gtype = G_TYPE_VALUE;
+                    case GI_INFO_TYPE_STRUCT:
+                    case GI_INFO_TYPE_UNION:
+                    case GI_INFO_TYPE_BOXED: {
+                        GType g_type = g_registered_type_info_get_g_type(interface_info.get());
+                        if (g_type_is_a(g_type, G_TYPE_VALUE)) {
+                            GValue gvalue = GIRValue::to_g_value(js_value, g_type);
+                            argument_value.v_pointer = g_boxed_copy(g_type, &gvalue); // FIXME: should we copy? where do
+                                                                                     // we deallocate?
+                        } else {
+                            argument_value.v_pointer = Nan::ObjectWrap::Unwrap<GIRStruct>(js_value->ToObject())->get_native_ptr();
+                        }
+                    } break;
+
+                    case GI_INFO_TYPE_FLAGS:
+                    case GI_INFO_TYPE_ENUM:
+                        argument_value.v_int = js_value->IntegerValue();
                         break;
+
                     default:
-                        gtype = G_TYPE_NONE;
-                        break;
-                }
-
-                // if the interface type is an object, then we expect
-                // the JS value to be a GIRObject so we can unwrap it
-                // and pass the GObject pointer to the GIArgument's v_pointer.
-                if (g_type_is_a(gtype, G_TYPE_OBJECT)) {
-                    if (!js_value->IsObject()) {
-                        throw JSArgumentTypeError();
-                    }
-                    GIRObject *gir_object = Nan::ObjectWrap::Unwrap<GIRObject>(js_value->ToObject());
-                    argument_value.v_pointer = gir_object->get_gobject();
-                }
-
-                // if it's a GValue then we need to use our GIRValue helper
-                // to convert it.
-                if (g_type_is_a(gtype, G_TYPE_VALUE)) {
-                    GValue gvalue = {0, {{0}}};
-                    if (!GIRValue::to_g_value(js_value, G_TYPE_INVALID, &gvalue)) {
-                        throw "TODO: refactor GIRValue::ToGValue to throw appropriate errors";
-                    }
-                    // FIXME I've to free this somewhere
-                    argument_value.v_pointer = g_boxed_copy(G_TYPE_VALUE, &gvalue);
-                    g_value_unset(&gvalue); // TODO: make this exception safe
+                        stringstream message;
+                        message << "argument type \"" << g_type_tag_to_string(argument_type_tag)
+                                << "\" is unsupported.";
+                        throw UnsupportedGIType(message.str());
                 }
             } break;
 
@@ -338,8 +285,8 @@ GIArgument Args::to_g_type(GIArgInfo &argument_info, Local<Value> js_value) {
         // using a nice message
         Nan::Utf8String js_type_name(js_value->TypeOf(Isolate::GetCurrent()));
         stringstream message;
-        message << "Expected type '" << g_base_info_get_name(&argument_info);
-        message << "' for Argument '" << g_type_tag_to_string(argument_type_tag);
+        message << "Expected type '" << g_type_tag_to_string(argument_type_tag);
+        message << "' for Argument '" << g_base_info_get_name(&argument_info);
         message << "' but got type '" << *js_type_name << "'";
         throw JSArgumentTypeError(message.str());
     }
@@ -347,7 +294,7 @@ GIArgument Args::to_g_type(GIArgInfo &argument_info, Local<Value> js_value) {
     return argument_value;
 }
 
-Handle<Value> Args::from_g_type_array(GIArgument *arg, GITypeInfo *type, int array_length) {
+Local<Value> Args::from_g_type_array(GIArgument *arg, GITypeInfo *type, int array_length) {
     GITypeInfo *param_info = g_type_info_get_param_type(type, 0);
     // bool is_zero_terminated = g_type_info_is_zero_terminated(param_info);
     GITypeTag param_tag = g_type_info_get_tag(param_info);
@@ -383,7 +330,7 @@ Handle<Value> Args::from_g_type_array(GIArgument *arg, GITypeInfo *type, int arr
             interface_info = g_type_info_get_interface(param_info);
             for (i = 0; i < array_length; i++) {
                 GObject *o = (GObject *)((gpointer *)arg->v_pointer)[i];
-                arr->Set(i, GIRObject::from_existing(o, g_registered_type_info_get_g_type(interface_info)));
+                arr->Set(i, GIRObject::from_existing(o, interface_info));
             }
             g_base_info_unref(interface_info);
             return arr;
@@ -401,87 +348,96 @@ Handle<Value> Args::from_g_type_array(GIArgument *arg, GITypeInfo *type, int arr
 Local<Value> Args::from_g_type(GIArgument *arg, GITypeInfo *type, int array_length) {
     GITypeTag tag = g_type_info_get_tag(type);
 
-    if (tag == GI_TYPE_TAG_INTERFACE) {
-        GIBaseInfo *interface_info = g_type_info_get_interface(type);
-        g_assert(interface_info != nullptr);
-        GIInfoType interface_type = g_base_info_get_type(interface_info);
-
-        if (interface_type == GI_INFO_TYPE_OBJECT) {
-            Local<Value> new_instance = GIRObject::from_existing(G_OBJECT(arg->v_pointer),
-                                                                 g_registered_type_info_get_g_type(interface_info));
-            g_base_info_unref(interface_info);
-            return new_instance;
-        }
-    }
-
-    if (tag == GI_TYPE_TAG_INTERFACE) {
-        GIBaseInfo *interface_info = g_type_info_get_interface(type);
-        g_assert(interface_info != nullptr);
-        GIInfoType interface_type = g_base_info_get_type(interface_info);
-
-        GType gtype;
-        switch (interface_type) {
-            case GI_INFO_TYPE_STRUCT:
-            case GI_INFO_TYPE_ENUM:
-            case GI_INFO_TYPE_OBJECT:
-            case GI_INFO_TYPE_INTERFACE:
-            case GI_INFO_TYPE_UNION:
-            case GI_INFO_TYPE_BOXED:
-                gtype = g_registered_type_info_get_g_type((GIRegisteredTypeInfo *)interface_info);
-                break;
-            case GI_INFO_TYPE_VALUE:
-                gtype = G_TYPE_VALUE;
-                break;
-
-            default:
-                gtype = G_TYPE_NONE;
-                break;
-        }
-
-        if (g_type_is_a(gtype, G_TYPE_OBJECT)) {
-            GObject *o = G_OBJECT(arg->v_pointer);
-            return GIRObject::from_existing(o, G_OBJECT_TYPE(o));
-        }
-        if (g_type_is_a(gtype, G_TYPE_VALUE)) {
-            GIRValue::from_g_value((GValue *)arg->v_pointer, nullptr);
-        }
-    }
-
     switch (tag) {
         case GI_TYPE_TAG_VOID:
             return Nan::Undefined();
+
         case GI_TYPE_TAG_BOOLEAN:
             return Nan::New<Boolean>(arg->v_boolean);
+
         case GI_TYPE_TAG_INT8:
             return Nan::New(arg->v_int8);
+
         case GI_TYPE_TAG_UINT8:
-            return Integer::NewFromUnsigned(v8::Isolate::GetCurrent(), arg->v_uint8);
+            return Nan::New(arg->v_uint8);
+
         case GI_TYPE_TAG_INT16:
             return Nan::New(arg->v_int16);
+
         case GI_TYPE_TAG_UINT16:
-            return Integer::NewFromUnsigned(v8::Isolate::GetCurrent(), arg->v_uint16);
+            return Nan::New(arg->v_uint16);
+
         case GI_TYPE_TAG_INT32:
             return Nan::New(arg->v_int32);
+
         case GI_TYPE_TAG_UINT32:
-            return Integer::NewFromUnsigned(v8::Isolate::GetCurrent(), arg->v_uint32);
+            return Nan::New(arg->v_uint32);
+
         case GI_TYPE_TAG_INT64:
-            return Nan::New((double)arg->v_int64);
+            // the ECMA script spec doesn't support int64 values
+            // and V8 internally stores them as doubles.
+            // This will lose precision if the original value
+            // has more than 53 significant binary digits.
+            return Nan::New(static_cast<double>(arg->v_int64));
+
         case GI_TYPE_TAG_UINT64:
-            return Integer::NewFromUnsigned(v8::Isolate::GetCurrent(), arg->v_uint64);
+            // the ECMA script spec doesn't support uint64 values
+            // and V8 internally stores them as doubles.
+            // This will lose precision if the original value
+            // has more than 53 significant binary digits.
+            return Nan::New(static_cast<double>(arg->v_uint64));
+
         case GI_TYPE_TAG_FLOAT:
             return Nan::New(arg->v_float);
+
         case GI_TYPE_TAG_DOUBLE:
             return Nan::New(arg->v_double);
+
         case GI_TYPE_TAG_GTYPE:
-            return Integer::NewFromUnsigned(v8::Isolate::GetCurrent(), arg->v_uint);
+            return Nan::New(arg->v_uint);
+
         case GI_TYPE_TAG_UTF8:
             return Nan::New(arg->v_string).ToLocalChecked();
+
         case GI_TYPE_TAG_FILENAME:
             return Nan::New(arg->v_string).ToLocalChecked();
+
         case GI_TYPE_TAG_ARRAY:
             return Args::from_g_type_array(arg, type, array_length);
-        case GI_TYPE_TAG_INTERFACE:
-            return Nan::Undefined();
+
+        case GI_TYPE_TAG_INTERFACE: {
+            GIBaseInfo *interface_info = g_type_info_get_interface(type);
+            GIInfoType interface_type = g_base_info_get_type(interface_info);
+            switch (interface_type) {
+                case GI_INFO_TYPE_OBJECT:
+                    if (arg->v_pointer == nullptr) {
+                        return Nan::Null();
+                    }
+                    return GIRObject::from_existing(G_OBJECT(arg->v_pointer), interface_info);
+
+                case GI_INFO_TYPE_INTERFACE:
+                case GI_INFO_TYPE_UNION:
+                case GI_INFO_TYPE_STRUCT:
+                case GI_INFO_TYPE_BOXED:
+                    if (arg->v_pointer == nullptr) {
+                        return Nan::Null();
+                    }
+                    return GIRStruct::from_existing(arg->v_pointer, interface_info);
+
+                case GI_INFO_TYPE_VALUE:
+                    return GIRValue::from_g_value(static_cast<GValue *>(arg->v_pointer), nullptr);
+
+                case GI_INFO_TYPE_ENUM:
+                    return Nan::New(arg->v_int);
+
+                // unsupported ...
+                default:
+                    stringstream message;
+                    message << "cannot convert '" << g_info_type_to_string(interface_type) << "' to a JS value";
+                    throw UnsupportedGIType(message.str());
+            }
+        } break;
+
         case GI_TYPE_TAG_GLIST:
             return Nan::Undefined();
         case GI_TYPE_TAG_GSLIST:

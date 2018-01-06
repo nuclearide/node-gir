@@ -3,6 +3,8 @@
 #include "util.h"
 
 #include <cstdlib>
+#include <sstream>
+#include "exceptions.h"
 #include "types/object.h"
 #include "types/struct.h"
 
@@ -84,7 +86,7 @@ Handle<Value> GIRValue::from_g_value(GValue *v, GIBaseInfo *base_info) {
             break;
 
         case G_TYPE_OBJECT:
-            return GIRObject::from_existing(G_OBJECT(g_value_get_object(v)), type);
+            return GIRObject::from_existing(G_OBJECT(g_value_get_object(v)), base_info);
 
         default:
             Nan::ThrowError("GIRValue - conversion of '%s' type not supported");
@@ -95,158 +97,144 @@ Handle<Value> GIRValue::from_g_value(GValue *v, GIBaseInfo *base_info) {
 
 // TODO: refactor to follow the style that Args::ToGType does
 // i.e. return a GValue and throw std::exceptions on failure
-bool GIRValue::to_g_value(Handle<Value> value, GType type, GValue *v) {
-    if (type == G_TYPE_INVALID || type == 0) {
-        type = GIRValue::guess_type(value);
-    }
-    if (type == 0) {
-        return false;
+GValue GIRValue::to_g_value(Local<Value> js_value, GType g_type) {
+    GValue g_value = G_VALUE_INIT;
+
+    if (g_type == G_TYPE_INVALID || g_type == 0) {
+        g_type = GIRValue::guess_type(js_value);
     }
 
-    g_value_init(v, type);
+    if (g_type == G_TYPE_INVALID) {
+        throw JSValueError("Could not guess the native value type from JS");
+    }
 
-    switch (G_TYPE_FUNDAMENTAL(type)) {
+    g_value_init(&g_value, g_type);
+
+    switch (G_TYPE_FUNDAMENTAL(g_type)) {
         case G_TYPE_INTERFACE:
         case G_TYPE_OBJECT:
-            if (value->IsObject()) {
-                g_value_set_object(v, Nan::ObjectWrap::Unwrap<GIRObject>(value->ToObject())->get_gobject());
-                return true;
-            }
+            g_value_set_object(&g_value, Nan::ObjectWrap::Unwrap<GIRObject>(js_value->ToObject())->get_gobject());
             break;
 
-        case G_TYPE_CHAR:
-            if (value->IsString()) {
-                String::Utf8Value str(value);
-                g_value_set_schar(v, (*str)[0]);
-                return true;
-            }
-            break;
+        case G_TYPE_CHAR: {
+            String::Utf8Value value(js_value->ToString());
+            g_value_set_schar(&g_value, (*value)[0]);
+        } break;
 
-        case G_TYPE_UCHAR:
-            if (value->IsString()) {
-                String::Utf8Value str(value);
-                g_value_set_schar(v, (*str)[0]);
-                return true;
-            }
-            break;
+        case G_TYPE_UCHAR: {
+            String::Utf8Value value(js_value->ToString());
+            g_value_set_uchar(&g_value, (*value)[0]);
+        } break;
 
         case G_TYPE_BOOLEAN:
-            if (value->IsBoolean()) {
-                g_value_set_boolean(v, value->ToBoolean()->IsTrue());
-                return true;
-            }
+            g_value_set_boolean(&g_value, js_value->BooleanValue());
+
             break;
 
         case G_TYPE_INT:
-            if (value->IsNumber()) {
-                g_value_set_int(v, Nan::To<int32_t>(value).FromJust());
-                return true;
-            }
+            g_value_set_int(&g_value, js_value->Int32Value());
             break;
 
         case G_TYPE_UINT:
-            if (value->IsNumber()) {
-                g_value_set_uint(v, value->NumberValue());
-                return true;
-            }
+            g_value_set_uint(&g_value, js_value->Uint32Value());
             break;
 
         case G_TYPE_LONG:
-            if (value->IsNumber()) {
-                g_value_set_long(v, value->NumberValue());
-                return true;
-            }
+            g_value_set_long(&g_value, js_value->NumberValue());
             break;
 
         case G_TYPE_ULONG:
-            if (value->IsNumber()) {
-                g_value_set_ulong(v, value->NumberValue());
-                return true;
-            }
+            g_value_set_ulong(&g_value, js_value->NumberValue());
             break;
 
         case G_TYPE_INT64:
-            if (value->IsNumber()) {
-                g_value_set_int64(v, value->NumberValue());
-                return true;
-            }
+            g_value_set_int64(&g_value, js_value->IntegerValue());
             break;
 
         case G_TYPE_UINT64:
-            if (value->IsNumber()) {
-                g_value_set_uint64(v, value->NumberValue());
-                return true;
-            }
+            g_value_set_uint64(&g_value, js_value->IntegerValue());
             break;
 
         case G_TYPE_ENUM:
-            if (value->IsNumber()) {
-                g_value_set_enum(v, value->NumberValue());
-                return true;
-            }
+            g_value_set_enum(&g_value, js_value->IntegerValue());
             break;
 
         case G_TYPE_FLAGS:
-            if (value->IsNumber()) {
-                g_value_set_flags(v, value->NumberValue());
-                return true;
-            }
+            g_value_set_flags(&g_value, js_value->IntegerValue());
             break;
 
         case G_TYPE_FLOAT:
-            if (value->IsNumber()) {
-                g_value_set_float(v, value->NumberValue());
-                return true;
-            }
+            g_value_set_float(&g_value, js_value->NumberValue());
             break;
 
         case G_TYPE_DOUBLE:
-            if (value->IsNumber()) {
-                g_value_set_double(v, (gdouble)value->NumberValue());
-                return true;
+            g_value_set_double(&g_value, js_value->NumberValue());
+            break;
+
+        case G_TYPE_STRING: {
+            String::Utf8Value value(js_value->ToString());
+            g_value_set_string(&g_value, *value);
+        } break;
+
+        case G_TYPE_BOXED:
+            if (g_type_is_a(g_type, G_TYPE_VALUE)) {
+                // we have a special case for GValue itself. If we need to convert a JS
+                // value into a GValue we must guess the native type. The easiest
+                // way to do that is to just call this same function (to_g_value).
+                // GIRValue::guess_type can't return G_TYPE_VALUE so we're save
+                // from infinite recursion.
+                return GIRValue::to_g_value(js_value, GIRValue::guess_type(js_value));
+            } else {
+                // otherwise we expect the js value to be a GIRStruct
+                // FIXME: error handling for invalid unwraps
+                GIRStruct *gir_struct = Nan::ObjectWrap::Unwrap<GIRStruct>(js_value->ToObject());
+                g_value_set_boxed(&g_value, gir_struct->get_native_ptr());
             }
             break;
-
-        case G_TYPE_STRING:
-            if (value->IsString()) {
-                g_value_set_string(v, *String::Utf8Value(value->ToString()));
-                return true;
-            }
-            break;
-
-        case G_TYPE_POINTER:
-            break;
-
-        case G_TYPE_BOXED: {
-            GIRStruct *gir_struct = Nan::ObjectWrap::Unwrap<GIRStruct>(value->ToObject());
-            g_value_set_boxed(v, gir_struct->get_native_ptr());
-        }
-            return true;
 
         case G_TYPE_PARAM:
-            break;
+        case G_TYPE_POINTER: {
+            stringstream message;
+            message << "Native value type '" << g_type_name(g_type) << "' is not yet supported";
+            throw UnsupportedGValueType(message.str());
+        } break;
 
         default:
-            Nan::ThrowError("Failed to convert value");
-            return false;
+            throw JSValueError("Failed to convert value");
+            break;
     }
-    return false;
+    return g_value;
 }
 
 GType GIRValue::guess_type(Handle<Value> value) {
     if (value->IsString()) {
         return G_TYPE_STRING;
-    } else if (value->IsArray()) {
+    }
+
+    if (value->IsArray()) {
         return G_TYPE_ARRAY;
-    } else if (value->IsBoolean()) {
+    }
+
+    if (value->IsBoolean()) {
         return G_TYPE_BOOLEAN;
-    } else if (value->IsInt32()) {
+    }
+
+    if (value->IsInt32()) {
         return G_TYPE_INT;
-    } else if (value->IsUint32()) {
+    }
+
+    if (value->IsUint32()) {
         return G_TYPE_UINT;
-    } else if (value->IsNumber()) {
+    }
+
+    if (value->IsNumber()) {
         return G_TYPE_DOUBLE;
     }
+
+    if (value->IsNull()) {
+        return G_TYPE_POINTER;
+    }
+
     return G_TYPE_INVALID;
 }
 

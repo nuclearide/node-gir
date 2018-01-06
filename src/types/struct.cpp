@@ -21,12 +21,21 @@ gpointer GIRStruct::get_native_ptr() {
 }
 
 Local<Value> GIRStruct::from_existing(gpointer c_structure, GIStructInfo *info) {
-    Local<Function> klass = GIRStruct::prepare(
-        info); // FIXME; we should find_or_prepare to reuse already prepared classes
+    Local<Function> klass = GIRStruct::prepare(info); // FIXME; we should find_or_prepare to reuse already prepared
+                                                      // classes. Preparing a new class will break JS code
+                                                      // doing things like `x instanceof Lib.Class`
     Local<Object> instance = Nan::NewInstance(klass).ToLocalChecked();
     GIRStruct *gir_struct = Nan::ObjectWrap::Unwrap<GIRStruct>(instance);
     GType gtype = g_registered_type_info_get_g_type(info);
-    gir_struct->c_structure = g_boxed_copy(gtype, c_structure);
+    if (g_base_info_get_type(info) == GI_INFO_TYPE_BOXED) {
+        // copy the boxed value
+        gir_struct->c_structure = g_boxed_copy(gtype, c_structure);
+    } else {
+        // allocate directly and copy the struct
+        gsize struct_size = g_struct_info_get_size(info);
+        gir_struct->c_structure = g_slice_alloc0(struct_size); // FIXME: where do we deallocate?
+        memcpy(gir_struct->c_structure, c_structure, struct_size);
+    }
     return instance;
 }
 

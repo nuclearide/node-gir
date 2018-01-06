@@ -55,26 +55,16 @@ GObject *GIRObject::get_gobject() {
     return this->obj;
 }
 
-Local<Value> GIRObject::from_existing(GObject *existing_gobject, GType gobject_type) {
+Local<Value> GIRObject::from_existing(GObject *existing_gobject, GIObjectInfo *object_info) {
     // sanity check our parameters
     if (existing_gobject == nullptr || !G_IS_OBJECT(existing_gobject)) {
-        return Nan::Null();
+        return Nan::Undefined(); // FIXME: perhaps throw an error?
     }
 
     // if there's already an existing Wrapper (instance) then return that
     MaybeLocal<Value> existing_gir_object = GIRObject::get_instance(existing_gobject);
     if (!existing_gir_object.IsEmpty()) {
         return existing_gir_object.ToLocalChecked();
-    }
-
-    GIObjectInfo *object_info = g_irepository_find_by_gtype(g_irepository_get_default(), gobject_type);
-    if (!GI_IS_OBJECT_INFO(object_info)) {
-        // TODO: FIXME:
-        // log error?
-        // raise error?
-        // constructors returning null shouldn't be a thing! constructors should
-        // always work!
-        return Nan::Null();
     }
 
     // find/create an object template, then initialize it with the existing GObject
@@ -95,17 +85,8 @@ map<string, GValue> GIRObject::parse_constructor_argument(Local<Object> properti
         Local<String> property_name = property_names->Get(i)->ToString();
         String::Utf8Value property_name_cstr(property_name);
         GType property_g_type = GIRObject::get_object_property_type(object_info, *property_name_cstr);
-
-        GValue gvalue = {0, {{0}}};
-        if (!GIRValue::to_g_value(properties_object->Get(property_name), property_g_type, &gvalue)) {
-            gchar *msg = g_strdup_printf("'%s' property value conversion failed", *property_name_cstr);
-            Nan::ThrowTypeError(msg); // TODO: this error needs to be handled
-                                      // differently perhaps? maybe a c++ exception
-                                      // instead?
-            return properties;
-        }
-
-        properties.insert(pair<string, GValue>(string(*property_name_cstr), gvalue));
+        GValue g_value = GIRValue::to_g_value(properties_object->Get(property_name), property_g_type);
+        properties.insert(pair<string, GValue>(string(*property_name_cstr), g_value));
     }
 
     return properties;
@@ -238,9 +219,9 @@ MaybeLocal<Value> GIRObject::get_instance(GObject *obj) {
     return MaybeLocal<Value>();
 }
 
-GIPropertyInfo *GIRObject::find_property(
-    GIObjectInfo *object_info,
-    char *property_name) { // FIXME: use a unique_pointer with std::move to return ownership
+GIPropertyInfo *GIRObject::find_property(GIObjectInfo *object_info,
+                                         char *property_name) { // FIXME: use a unique_pointer with std::move to return
+                                                                // ownership
     int num_properties = g_object_info_get_n_properties(object_info);
     for (int i = 0; i < num_properties; i++) {
         GIPropertyInfo *prop = g_object_info_get_property(object_info, i);
@@ -362,33 +343,28 @@ NAN_PROPERTY_GETTER(GIRObject::property_get_handler) {
 }
 
 NAN_PROPERTY_SETTER(GIRObject::property_set_handler) {
-    String::Utf8Value _name(property);
+    String::Utf8Value property_name(property);
 
     v8::Handle<v8::External> info_ptr = v8::Handle<v8::External>::Cast(info.Data());
     GIBaseInfo *base_info = (GIBaseInfo *)info_ptr->Value();
     if (base_info != nullptr) {
         GIRObject *that = Nan::ObjectWrap::Unwrap<GIRObject>(info.This()->ToObject());
-        GParamSpec *pspec = g_object_class_find_property(G_OBJECT_GET_CLASS(that->obj), *_name);
+        GParamSpec *pspec = g_object_class_find_property(G_OBJECT_GET_CLASS(that->obj), *property_name);
         if (pspec) {
             // Property is not readable
             if (!(pspec->flags & G_PARAM_WRITABLE)) {
                 Nan::ThrowTypeError("property is not writable");
             }
 
-            GValue gvalue = {0, {{0}}};
-            bool value_is_set = GIRValue::to_g_value(value, pspec->value_type, &gvalue);
-            g_object_set_property(G_OBJECT(that->obj), *_name, &gvalue);
-            GType value_type = G_TYPE_FUNDAMENTAL(pspec->value_type);
-            if (value_type != G_TYPE_OBJECT && value_type != G_TYPE_BOXED) {
-                g_value_unset(&gvalue);
-            }
-            info.GetReturnValue().Set(Nan::New(value_is_set));
+            GValue g_value = GIRValue::to_g_value(value, pspec->value_type);
+            g_object_set_property(that->obj, *property_name, &g_value);
+            g_value_unset(&g_value);
             return;
         }
     }
 
     // Fallback to defaults
-    info.GetReturnValue().Set(Nan::New<v8::Boolean>(info.This()->GetPrototype()->ToObject()->Set(property, value)));
+    info.This()->GetPrototype()->ToObject()->Set(property, value);
 }
 
 /**

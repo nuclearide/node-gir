@@ -102,10 +102,8 @@ void GIRSignalClosure::closure_marshal(GClosure *closure,
         // attempt to convert the Local<Value> to a the return_value's GValue type.
         // if the conversion fails we'll throw an exception to JS land.
         // if the conversion is successful, then the return_value will be set!
-        if (!GIRValue::to_g_value(result, G_VALUE_TYPE(return_value), return_value)) {
-            Nan::ThrowError("cannot convert return value of callback to a GI type");
-            return;
-        }
+        GValue g_value = GIRValue::to_g_value(result, G_VALUE_TYPE(return_value));
+        g_value_copy(&g_value, return_value);
         return;
     }
 }
