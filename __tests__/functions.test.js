@@ -2,6 +2,7 @@ const { load, Gtk } = require('../');
 
 const GObject = load('GObject');
 const GdkPixbuf = load('GdkPixbuf');
+const GIRepository = load('GIRepository');
 
 const pixbuf = new GdkPixbuf.Pixbuf();
 
@@ -68,6 +69,17 @@ describe('functions', () => {
     //   expect(typeof(gtypeArray.length)).toEqual('number');
     //   expect(gtypeArray.length).not.toEqual(0);
     // });
+
+    test('functions can return UTF8 (string) arrays', () => {
+      const repository = new GIRepository.Repository();
+      repository.require('Gtk', '3.0', 0);
+      const result = repository.getDependencies('Gtk');
+      expect(Array.isArray(result)).toBe(true);
+      expect(result.length).not.toEqual(0);
+      for (const element of result) {
+        expect(typeof(element)).toEqual('string');
+      }
+    });
 
     test('functions with out arguments should return an array', function() {
       const button = new Gtk.Button();

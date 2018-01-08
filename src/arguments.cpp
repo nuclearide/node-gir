@@ -295,52 +295,39 @@ GIArgument Args::to_g_type(GIArgInfo &argument_info, Local<Value> js_value) {
 }
 
 Local<Value> Args::from_g_type_array(GIArgument *arg, GITypeInfo *type, int array_length) {
-    GITypeInfo *param_info = g_type_info_get_param_type(type, 0);
-    // bool is_zero_terminated = g_type_info_is_zero_terminated(param_info);
-    GITypeTag param_tag = g_type_info_get_tag(param_info);
+    GIArrayType array_type_info = g_type_info_get_array_type(type);
+    auto element_type_info = GIRInfoUniquePtr(g_type_info_get_param_type(type, 0));
+    GITypeTag param_tag = g_type_info_get_tag(element_type_info.get());
 
-    // g_base_info_unref(param_info);
-
-    int i = 0;
-    v8::Local<v8::Array> arr;
-    GIBaseInfo *interface_info;
-
-    switch (param_tag) {
-        case GI_TYPE_TAG_UINT8:
-            if (arg->v_pointer == nullptr)
-                return Nan::New("", 0).ToLocalChecked();
-            // TODO, copy bytes to array
-            // http://groups.google.com/group/v8-users/browse_thread/thread/8c5177923675749e?pli=1
-            return Nan::New((char *)arg->v_pointer, array_length).ToLocalChecked();
-
-        case GI_TYPE_TAG_GTYPE:
-            if (arg->v_pointer == nullptr)
-                return Nan::New<Array>();
-            arr = Nan::New<Array>(array_length);
-            for (i = 0; i < array_length; i++) {
-                Nan::Set(arr, i, Nan::New((int)GPOINTER_TO_INT(((gpointer *)arg->v_pointer)[i])));
+    switch (array_type_info) {
+        case GI_ARRAY_TYPE_C:
+            if (g_type_info_is_zero_terminated(type)) {
+                GIArgument element;
+                gpointer *native_array = (gpointer *)arg->v_pointer;
+                Local<Array> js_array = Nan::New<Array>();
+                for (int i = 0; native_array[i]; i++) {
+                    element.v_pointer = native_array[i];
+                    Local<Value> js_element = Args::from_g_type(&element, element_type_info.get(), 0);
+                    js_array->Set(i, js_element);
+                }
+                return js_array;
+            } else {
+                // use array_length param once the layers above this
+                // pas it correctly.
+                // the length param comes from the native function call's
+                // out arguments but, currently, it doesn't get passed own
+                // here correctly.
+                throw UnsupportedGIType("Converting non null terminated arrays is not yet supported");
             }
-            return arr;
-
-        case GI_TYPE_TAG_INTERFACE:
-            if (arg->v_pointer == nullptr) {
-                return Nan::New<Array>();
-            }
-            arr = Nan::New<Array>(array_length);
-            interface_info = g_type_info_get_interface(param_info);
-            for (i = 0; i < array_length; i++) {
-                GObject *o = (GObject *)((gpointer *)arg->v_pointer)[i];
-                arr->Set(i, GIRObject::from_existing(o, interface_info));
-            }
-            g_base_info_unref(interface_info);
-            return arr;
-
+            break;
         default:
-            gchar *exc_msg = g_strdup_printf("Converting array of '%s' is not supported",
-                                             g_type_tag_to_string(param_tag));
-            Nan::ThrowError(exc_msg);
-            return Nan::Undefined();
+            throw UnsupportedGIType("cannot convert native array type");
     }
+
+    stringstream message;
+    message << "Converting array of type '" << g_type_tag_to_string(param_tag);
+    message << "' is not supported";
+    throw UnsupportedGIType(message.str());
 }
 
 // TODO: refactor this function and most of the code below this.
@@ -427,6 +414,7 @@ Local<Value> Args::from_g_type(GIArgument *arg, GITypeInfo *type, int array_leng
                 case GI_INFO_TYPE_VALUE:
                     return GIRValue::from_g_value(static_cast<GValue *>(arg->v_pointer), nullptr);
 
+                case GI_INFO_TYPE_FLAGS:
                 case GI_INFO_TYPE_ENUM:
                     return Nan::New(arg->v_int);
 

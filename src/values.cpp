@@ -12,9 +12,9 @@ using namespace v8;
 
 namespace gir {
 
-Handle<Value> GIRValue::from_g_value(GValue *v, GIBaseInfo *base_info) {
+Local<Value> GIRValue::from_g_value(GValue *v, GIBaseInfo *base_info) {
     GType type = G_VALUE_TYPE(v);
-    Handle<Value> value = Nan::Undefined();
+    Local<Value> value = Nan::Undefined();
     const char *tmpstr;
     char *str;
     GIBaseInfo *boxed_info;

@@ -36,7 +36,7 @@ describe('Arguments direction', () => {
     });
   });
 
-  // describe('out', () => {
+  describe('out', () => {
     // test('out arguments', () => {
     //   window.setTitle("Lancelot");
     //   expect(window.getProperty("title")).toEqual("Lancelot");
@@ -51,7 +51,7 @@ describe('Arguments direction', () => {
     //   expect(children).toContain(GObject.typeFromName('GtkPlug'));
     //   expect(children).toContain(GObject.typeFromName('GtkOffscreenWindow'));
     // });
-  // });
+  });
 
 });
 

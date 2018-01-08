@@ -33,7 +33,7 @@ public:
     // like structs.)
     static GIArgument to_g_type(GIArgInfo &argument_info, Local<Value> js_value);
     static Local<Value> from_g_type_array(GIArgument *arg, GIArgInfo *info, int array_length);
-    static Local<Value> from_g_type(GIArgument *arg, GIArgInfo *info, int array_length);
+    static Local<Value> from_g_type(GIArgument *arg, GITypeInfo *type_info, int array_length);
 };
 
 } // namespace gir
