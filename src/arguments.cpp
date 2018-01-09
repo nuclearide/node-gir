@@ -269,7 +269,7 @@ GIArgument Args::to_g_type(GIArgInfo &argument_info, Local<Value> js_value) {
 
                     default:
                         stringstream message;
-                        message << "argument type \"" << g_type_tag_to_string(argument_type_tag)
+                        message << "argument type \"" << g_info_type_to_string(interface_type)
                                 << "\" is unsupported.";
                         throw UnsupportedGIType(message.str());
                 }
