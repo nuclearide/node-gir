@@ -6,6 +6,7 @@
 #include <sstream>
 #include <vector>
 #include "exceptions.h"
+#include "closure.h"
 #include "types/object.h"
 #include "types/struct.h"
 
@@ -265,6 +266,18 @@ GIArgument Args::to_g_type(GIArgInfo &argument_info, Local<Value> js_value) {
                     case GI_INFO_TYPE_FLAGS:
                     case GI_INFO_TYPE_ENUM:
                         argument_value.v_int = js_value->IntegerValue();
+                        break;
+
+                    case GI_INFO_TYPE_CALLBACK:
+                        // TODO:
+                        // - find an example from GTK that uses
+                        //   a callback argument so I can write a testcase
+                        // - implement the argument type
+                        // - make sure the keybinding example also works
+                        {
+                            auto closure = GIRClosure::create_ffi(interface_info.get(), js_value.As<Function>());
+                            argument_value.v_pointer = closure;
+                        }
                         break;
 
                     default:

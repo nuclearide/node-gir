@@ -13,7 +13,7 @@
                 'src/types/function.cpp',
                 'src/types/enum.cpp',
                 'src/loop.cpp',
-                'src/signal_closure.cpp'
+                'src/closure.cpp'
             ],
             'conditions': [
                 ['OS=="linux"',

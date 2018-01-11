@@ -1,11 +1,11 @@
 #include <iostream>
 #include <string>
 
-#include "../namespace_loader.h"
-#include "../signal_closure.h"
-#include "../util.h"
-#include "../values.h"
-#include "./function.h"
+#include "namespace_loader.h"
+#include "closure.h"
+#include "util.h"
+#include "values.h"
+#include "types/function.h"
 #include "object.h"
 
 #include <node.h>
@@ -271,7 +271,7 @@ void GIRObject::set_method(Local<FunctionTemplate> &target, GIFunctionInfo *func
         target->PrototypeTemplate()->Set(js_function_name, GIRFunction::create_method(function_info));
     } else {
         // else if it's not a method, then we want to set it as a static function
-        // on the target itself (not the prototype)
+        // on the target itgir_object (not the prototype)
         target->Set(js_function_name, GIRFunction::create_function(function_info));
     }
 }
@@ -369,14 +369,15 @@ NAN_PROPERTY_SETTER(GIRObject::property_set_handler) {
 
 /**
  * This method will connect a signal to the underlying gobject
- * using a GirSignalClosure (a custom GClosure we've written to support
+ * using a GIRClosure (a custom GClosure we've written to support
  * JS callback's)
  */
 NAN_METHOD(GIRObject::connect) {
     if (info.Length() != 2 || !info[0]->IsString() || !info[1]->IsFunction()) {
         Nan::ThrowError("Invalid arguments: expected (string, Function)");
+        return;
     }
-    GIRObject *self = Nan::ObjectWrap::Unwrap<GIRObject>(info.This()->ToObject());
+    GIRObject *gir_object = Nan::ObjectWrap::Unwrap<GIRObject>(info.This()->ToObject());
     Nan::Utf8String nan_signal_name(info[0]->ToString());
     char *signal_name = *nan_signal_name;
     Local<Function> callback = Nan::To<Function>(info[1]).ToLocalChecked();
@@ -384,8 +385,9 @@ NAN_METHOD(GIRObject::connect) {
     // parse the signal id and detail (whatever that is) from the gobject we're wrapping
     guint signal_id;
     GQuark detail;
-    if (!g_signal_parse_name(signal_name, G_OBJECT_TYPE(self->obj), &signal_id, &detail, TRUE)) {
+    if (!g_signal_parse_name(signal_name, G_OBJECT_TYPE(gir_object->obj), &signal_id, &detail, TRUE)) {
         Nan::ThrowError("unknown signal name");
+        return;
     }
 
     // query for in-depth information about the target signal
@@ -394,14 +396,28 @@ NAN_METHOD(GIRObject::connect) {
     GSignalQuery signal_query;
     g_signal_query(signal_id, &signal_query);
 
+    auto target_info = GIRInfoUniquePtr(g_irepository_find_by_gtype(g_irepository_get_default(), signal_query.itype));
+    if (target_info == nullptr) {
+        Nan::ThrowError("unknown signal");
+        return;
+    }
+
+    GIRInfoUniquePtr signal_info = nullptr;
+    if (GI_IS_OBJECT_INFO(target_info.get())) {
+        signal_info = GIRInfoUniquePtr(g_object_info_find_signal(target_info.get(), signal_name));
+    } else if (GI_IS_INTERFACE_INFO(target_info.get())) {
+        signal_info = GIRInfoUniquePtr(g_interface_info_find_signal(target_info.get(), signal_name));
+    }
+
     // create a closure that will manage the signal callback to JS callback for us
-    GClosure *closure = GIRSignalClosure::create(self, signal_query.itype, signal_name, callback);
+    GClosure *closure = GIRClosure::create(signal_info.get(), callback);
     if (closure == nullptr) {
         Nan::ThrowError("unknown signal");
+        return;
     }
 
     // connect the closure to the signal using the signal_id and detail we've already found
-    gulong handle_id = g_signal_connect_closure_by_id(self->obj,
+    gulong handle_id = g_signal_connect_closure_by_id(gir_object->obj,
                                                       signal_id,
                                                       detail,
                                                       closure,

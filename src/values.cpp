@@ -7,6 +7,7 @@
 #include "exceptions.h"
 #include "types/object.h"
 #include "types/struct.h"
+#include "arguments.h"
 
 using namespace v8;
 
@@ -75,11 +76,12 @@ Local<Value> GIRValue::from_g_value(GValue *v, GIBaseInfo *base_info) {
 
         case G_TYPE_BOXED:
             if (G_VALUE_TYPE(v) == G_TYPE_ARRAY) {
-                Nan::ThrowError("GIRValue - GValueArray conversion not supported");
+                throw UnsupportedGValueType("GIRValue - GValueArray conversion not supported");
             } else {
                 // Handle C structure held by boxed type
-                if (base_info == nullptr)
-                    Nan::ThrowError("GIRValue - missed base_info for boxed type");
+                if (base_info == nullptr) {
+                    throw UnsupportedGValueType("GIRValue - missed base_info for boxed type");
+                }
                 boxed_info = g_irepository_find_by_gtype(g_irepository_get_default(), G_VALUE_TYPE(v));
                 return GIRStruct::from_existing((GIRStruct *)g_value_get_boxed(v), boxed_info);
             }
@@ -89,7 +91,7 @@ Local<Value> GIRValue::from_g_value(GValue *v, GIBaseInfo *base_info) {
             return GIRObject::from_existing(G_OBJECT(g_value_get_object(v)), base_info);
 
         default:
-            Nan::ThrowError("GIRValue - conversion of '%s' type not supported");
+            throw UnsupportedGValueType("GIRValue - conversion of input type not supported");
     }
 
     return value;
@@ -128,7 +130,6 @@ GValue GIRValue::to_g_value(Local<Value> js_value, GType g_type) {
 
         case G_TYPE_BOOLEAN:
             g_value_set_boolean(&g_value, js_value->BooleanValue());
-
             break;
 
         case G_TYPE_INT:
