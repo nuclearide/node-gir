@@ -1,12 +1,12 @@
 #include <iostream>
 #include <string>
 
-#include "namespace_loader.h"
 #include "closure.h"
+#include "namespace_loader.h"
+#include "object.h"
+#include "types/function.h"
 #include "util.h"
 #include "values.h"
-#include "types/function.h"
-#include "object.h"
 
 #include <node.h>
 #include <cstring>

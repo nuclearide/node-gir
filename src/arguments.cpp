@@ -5,8 +5,8 @@
 #include <cstring>
 #include <sstream>
 #include <vector>
-#include "exceptions.h"
 #include "closure.h"
+#include "exceptions.h"
 #include "types/object.h"
 #include "types/struct.h"
 
@@ -28,6 +28,7 @@ Args::Args(GICallableInfo *callable_info) : callable_info(callable_info, g_base_
  */
 void Args::load_js_arguments(const Nan::FunctionCallbackInfo<v8::Value> &js_callback_info) {
     // get the number of arguments the native function requires
+    auto name = g_base_info_get_name(this->callable_info.get());
     guint8 gi_argc = g_callable_info_get_n_args(this->callable_info.get());
 
     // for every expected native argument, we'll take a given JS argument and
@@ -159,15 +160,18 @@ GIArgument Args::to_g_type(GIArgInfo &argument_info, Local<Value> js_value) {
             // we've already set the pointer properties of argument_value
             // to nullptr so we can just return it now
             return argument_value;
-        } else {
-            stringstream message;
-            message << "Argument '" << g_base_info_get_name(&argument_info) << "' may not be null or undefined";
-            throw JSArgumentTypeError(message.str());
         }
+        stringstream message;
+        message << "Argument '" << g_base_info_get_name(&argument_info) << "' may not be null or undefined";
+        throw JSArgumentTypeError(message.str());
     }
 
     try {
         switch (argument_type_tag) {
+            case GI_TYPE_TAG_VOID:
+                argument_value.v_pointer = nullptr;
+                break;
+
             case GI_TYPE_TAG_BOOLEAN:
                 argument_value.v_boolean = js_value->ToBoolean()->Value();
                 break;
@@ -257,9 +261,10 @@ GIArgument Args::to_g_type(GIArgInfo &argument_info, Local<Value> js_value) {
                         if (g_type_is_a(g_type, G_TYPE_VALUE)) {
                             GValue gvalue = GIRValue::to_g_value(js_value, g_type);
                             argument_value.v_pointer = g_boxed_copy(g_type, &gvalue); // FIXME: should we copy? where do
-                                                                                     // we deallocate?
+                                                                                      // we deallocate?
                         } else {
-                            argument_value.v_pointer = Nan::ObjectWrap::Unwrap<GIRStruct>(js_value->ToObject())->get_native_ptr();
+                            argument_value.v_pointer = Nan::ObjectWrap::Unwrap<GIRStruct>(js_value->ToObject())
+                                                           ->get_native_ptr();
                         }
                     } break;
 
@@ -282,7 +287,7 @@ GIArgument Args::to_g_type(GIArgInfo &argument_info, Local<Value> js_value) {
 
                     default:
                         stringstream message;
-                        message << "argument type \"" << g_info_type_to_string(interface_type)
+                        message << "argument's with interface type \"" << g_info_type_to_string(interface_type)
                                 << "\" is unsupported.";
                         throw UnsupportedGIType(message.str());
                 }

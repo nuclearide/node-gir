@@ -11,7 +11,7 @@ using namespace v8;
 class GIRValue {
 public:
     static GValue to_g_value(Local<Value> value, GType g_type);
-    static Local<Value> from_g_value(GValue *v, GIBaseInfo *base_info);
+    static Local<Value> from_g_value(const GValue *v, GITypeInfo *type_info);
 
 private:
     static GType guess_type(Local<Value> value);

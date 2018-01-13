@@ -1,9 +1,9 @@
-#include "./closure.h"
-#include "./values.h"
-#include "util.h"
+#include "closure.h"
+#include <sstream>
 #include "arguments.h"
 #include "exceptions.h"
-#include <sstream>
+#include "util.h"
+#include "values.h"
 
 namespace gir {
 
@@ -15,8 +15,7 @@ namespace gir {
  * error condition, it's suppose to be a 'constructor' function (constructing a closure struct)
  * and constructors shouldn't really 'error' like this.
  */
-GClosure *GIRClosure::create(GICallableInfo *callable_info,
-                                   Local<Function> callback) {
+GClosure *GIRClosure::create(GICallableInfo *callable_info, Local<Function> callback) {
     // create a custom GClosure
     GClosure *closure = g_closure_new_simple(sizeof(GIRClosure), nullptr);
     GIRClosure *gir_signal_closure = (GIRClosure *)closure;
@@ -32,83 +31,40 @@ GClosure *GIRClosure::create(GICallableInfo *callable_info,
     return closure;
 }
 
-GValue ffi_arg_to_g_value(GIArgInfo *argument_info, void *ffi_arg_value) {
-    auto argument_type_info = GIRInfoUniquePtr(g_arg_info_get_type(argument_info));
-    auto name = g_base_info_get_name(argument_info);
-    auto argument_type_tag = g_type_info_get_tag(argument_type_info.get());
-    GValue gvalue = G_VALUE_INIT;
-    switch (argument_type_tag) {
-        case GI_TYPE_TAG_BOOLEAN:
-            // gvalue.v_boolean = *(gboolean*) args[i];
-            break;
-        case GI_TYPE_TAG_INT8:
-            // gvalue.v_int8 = *(gint8*) args[i];
-            break;
-        case GI_TYPE_TAG_UINT8:
-            // gvalue.v_uint8 = *(guint8*) args[i];
-            break;
-        case GI_TYPE_TAG_INT16:
-            // gvalue.v_int16 = *(gint16*) args[i];
-            break;
-        case GI_TYPE_TAG_UINT16:
-            // gvalue.v_uint16 = *(guint16*) args[i];
-            break;
-        case GI_TYPE_TAG_INT32:
-            // gvalue.v_int32 = *(gint32*) args[i];
-            break;
-        case GI_TYPE_TAG_UINT32:
-            // gvalue.v_uint32 = *(guint32*) args[i];
-            break;
-        case GI_TYPE_TAG_INT64:
-            // gvalue.v_int64 = *(gint64*) args[i];
-            break;
-        case GI_TYPE_TAG_UINT64:
-            // gvalue.v_uint64 = *(guint64*) args[i];
-            break;
-        case GI_TYPE_TAG_FLOAT:
-            // gvalue.v_float = *(gfloat*) args[i];
-            break;
-        case GI_TYPE_TAG_DOUBLE:
-            // gvalue.v_double = *(gdouble*) args[i];
-            break;
-        case GI_TYPE_TAG_UTF8:
-            g_value_init(&gvalue, G_TYPE_STRING);
-            g_value_set_string(&gvalue, (gchar *)ffi_arg_value);
-            printf("%s", g_value_get_string(&gvalue));
-            break;
-        case GI_TYPE_TAG_VOID:
-            gvalue.g_type = G_TYPE_NONE;
-            // g_value_set_pointer(&gvalue, ffi_arg_value); // FIXME: what should this really be? nullptr?
-            break;
-        default:
-            stringstream message;
-            message << "Callback closure doesn't support arguments of type '"
-                    << g_type_tag_to_string(argument_type_tag) << "' yet";
-            throw UnsupportedGIType(message.str());
-    }
-    return gvalue;
-}
-
 void GIRClosure::ffi_closure_callback(ffi_cif *cif, void *result, void **args, gpointer user_data) {
     GIRClosure *gir_closure = static_cast<GIRClosure *>(user_data);
+    int n_native_args = g_callable_info_get_n_args(gir_closure->callable_info);
+    vector<Local<Value>> js_args;
+    js_args.reserve(n_native_args);
+    // FIXME: no clue why this works but it does.
+    // if someone could explain it (or show why it's likely very broken)
+    // that'd be amazing.
+    GIArgument **gi_args = reinterpret_cast<GIArgument **>(args);
+    for (int i = 0; i < n_native_args; i++) {
+        auto arg_info = GIRInfoUniquePtr(g_callable_info_get_arg(gir_closure->callable_info, i));
+        auto arg_type_info = GIRInfoUniquePtr(g_arg_info_get_type(arg_info.get()));
+        if (g_type_info_get_tag(arg_type_info.get()) == GI_TYPE_TAG_VOID) {
+            // skip void arguments
+            continue;
+        }
+        js_args.push_back(Args::from_g_type(gi_args[i], arg_type_info.get(), 0));
+    }
     Local<Function> js_callback = Nan::New<Function>(gir_closure->callback);
-    Nan::Call(js_callback, Nan::GetCurrentContext()->Global(), 0, nullptr);
+    Nan::Call(js_callback, Nan::GetCurrentContext()->Global(), js_args.size(), js_args.data());
 }
 
-ffi_closure *GIRClosure::create_ffi(GICallableInfo *callable_info,
-                                          Local<Function> js_callback) {
+ffi_closure *GIRClosure::create_ffi(GICallableInfo *callable_info, Local<Function> js_callback) {
     ffi_cif *cif = new ffi_cif(); // FIXME: where do we free this
     GClosure *gclosure = GIRClosure::create(callable_info, js_callback);
     return g_callable_info_prepare_closure(callable_info, cif, GIRClosure::ffi_closure_callback, gclosure);
 }
 
-
 void GIRClosure::closure_marshal(GClosure *closure,
-                                       GValue *return_value,
-                                       guint n_param_values,
-                                       const GValue *param_values,
-                                       gpointer invocation_hint,
-                                       gpointer marshal_data) {
+                                 GValue *return_value,
+                                 guint n_param_values,
+                                 const GValue *param_values,
+                                 gpointer invocation_hint,
+                                 gpointer marshal_data) {
     GIRClosure *gir_signal_closure = (GIRClosure *)closure;
     Nan::HandleScope scope;
 
@@ -119,26 +75,17 @@ void GIRClosure::closure_marshal(GClosure *closure,
     // for each value in param_values, convert to a Local<Value> using
     // converters defined in values.h for GValue -> v8::Value conversions.
     for (guint i = 0; i < n_param_values; i++) {
-        // we need to get the native parameter
-        GValue native_param = param_values[i];
-
         // then get some GI information for this argument (find it's Type)
         // we can get this information from the original callable_info that the
         // signal_closure was created for.
-        GIArgInfo *arg_info = g_callable_info_get_arg(gir_signal_closure->callable_info,
-                                                      i); // FIXME: CRITICAL: we should assert that the length of the
-                                                          // callable params matches the n_param_values to avoid an
-                                                          // array overrun!!!!!!!
-        GITypeInfo *type_info = g_arg_info_get_type(arg_info);
+        auto arg_info = GIRInfoUniquePtr(g_callable_info_get_arg(gir_signal_closure->callable_info,
+                                                                 i)); // FIXME: CRITICAL: we should assert that the
+                                                                      // length of the callable params matches the
+                                                                      // n_param_values to avoid an array overrun!!!!!!!
+        auto type_info = GIRInfoUniquePtr(g_arg_info_get_type(arg_info.get()));
 
         // convert the native GValue to a v8::Value
-        Local<Value> js_param = GIRValue::from_g_value(&native_param,
-                                                       type_info);
-
-        // clean up memory
-        // FIXME: should use unique_ptrs for exception safety
-        g_base_info_unref(arg_info);
-        g_base_info_unref(type_info);
+        Local<Value> js_param = GIRValue::from_g_value(&param_values[i], type_info.get());
 
         // put the value into 'argv', ready for the callback!
         callback_argv[i] = js_param;

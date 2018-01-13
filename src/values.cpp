@@ -4,97 +4,84 @@
 
 #include <cstdlib>
 #include <sstream>
+#include "arguments.h"
 #include "exceptions.h"
 #include "types/object.h"
 #include "types/struct.h"
-#include "arguments.h"
 
 using namespace v8;
 
 namespace gir {
 
-Local<Value> GIRValue::from_g_value(GValue *v, GIBaseInfo *base_info) {
-    GType type = G_VALUE_TYPE(v);
-    Local<Value> value = Nan::Undefined();
-    const char *tmpstr;
-    char *str;
-    GIBaseInfo *boxed_info;
-
-    switch (G_TYPE_FUNDAMENTAL(type)) {
-        case G_TYPE_CHAR:
-            str = new char[2];
-            str[0] = g_value_get_schar(v);
+Local<Value> GIRValue::from_g_value(const GValue *gvalue, GITypeInfo *type_info) {
+    switch (G_TYPE_FUNDAMENTAL(G_VALUE_TYPE(gvalue))) {
+        case G_TYPE_CHAR: {
+            char str[2];
+            str[0] = g_value_get_schar(gvalue);
             str[1] = '\0';
-            value = Nan::New<String>(str).ToLocalChecked();
-            delete[] str;
-            return value;
+            return Nan::New(str).ToLocalChecked();
+        } break;
 
-        case G_TYPE_UCHAR:
-            str = new char[2];
-            str[0] = g_value_get_uchar(v);
+        case G_TYPE_UCHAR: {
+            char str[2];
+            str[0] = g_value_get_uchar(gvalue);
             str[1] = '\0';
-            value = Nan::New<String>(str).ToLocalChecked();
-            delete[] str;
-            return value;
+            return Nan::New(str).ToLocalChecked();
+        } break;
 
         case G_TYPE_BOOLEAN:
-            return Nan::New<Boolean>(g_value_get_boolean(v));
+            return Nan::New<Boolean>(g_value_get_boolean(gvalue));
 
         case G_TYPE_INT:
-            return Nan::New<Number>(g_value_get_int(v));
+            return Nan::New(g_value_get_int(gvalue));
 
         case G_TYPE_UINT:
-            return Nan::New<Number>(g_value_get_uint(v));
+            return Nan::New(g_value_get_uint(gvalue));
 
         case G_TYPE_LONG:
-            return Nan::New<Number>(g_value_get_long(v));
+            return Nan::New<Number>(g_value_get_long(gvalue));
 
         case G_TYPE_ULONG:
-            return Nan::New<Number>(g_value_get_ulong(v));
+            return Nan::New<Number>(g_value_get_ulong(gvalue));
 
         case G_TYPE_INT64:
-            return Nan::New<Number>(g_value_get_int64(v));
+            return Nan::New<Number>(g_value_get_int64(gvalue));
 
         case G_TYPE_UINT64:
-            return Nan::New<Number>(g_value_get_uint64(v));
+            return Nan::New<Number>(g_value_get_uint64(gvalue));
 
         case G_TYPE_ENUM:
-            return Nan::New<Number>(g_value_get_enum(v));
+            return Nan::New(g_value_get_enum(gvalue));
 
         case G_TYPE_FLAGS:
-            return Nan::New<Number>(g_value_get_flags(v));
+            return Nan::New(g_value_get_flags(gvalue));
 
         case G_TYPE_FLOAT:
-            return Nan::New<Number>(g_value_get_float(v));
+            return Nan::New(g_value_get_float(gvalue));
 
         case G_TYPE_DOUBLE:
-            return Nan::New<Number>(g_value_get_double(v));
+            return Nan::New(g_value_get_double(gvalue));
 
         case G_TYPE_STRING:
-            tmpstr = g_value_get_string(v);
-            return Nan::New<String>(tmpstr ? tmpstr : "").ToLocalChecked();
+            return Nan::New(g_value_get_string(gvalue)).ToLocalChecked();
 
         case G_TYPE_BOXED:
-            if (G_VALUE_TYPE(v) == G_TYPE_ARRAY) {
+            if (G_VALUE_TYPE(gvalue) == G_TYPE_ARRAY) {
                 throw UnsupportedGValueType("GIRValue - GValueArray conversion not supported");
             } else {
-                // Handle C structure held by boxed type
-                if (base_info == nullptr) {
-                    throw UnsupportedGValueType("GIRValue - missed base_info for boxed type");
-                }
-                boxed_info = g_irepository_find_by_gtype(g_irepository_get_default(), G_VALUE_TYPE(v));
-                return GIRStruct::from_existing((GIRStruct *)g_value_get_boxed(v), boxed_info);
+                GIBaseInfo *boxed_info = g_irepository_find_by_gtype(g_irepository_get_default(), G_VALUE_TYPE(gvalue));
+                return GIRStruct::from_existing((GIRStruct *)g_value_get_boxed(gvalue), boxed_info);
             }
             break;
 
-        case G_TYPE_OBJECT:
-            return GIRObject::from_existing(G_OBJECT(g_value_get_object(v)), base_info);
+        case G_TYPE_OBJECT: {
+            GIBaseInfo *object_info = g_irepository_find_by_gtype(g_irepository_get_default(), G_VALUE_TYPE(gvalue));
+            return GIRObject::from_existing(G_OBJECT(g_value_get_object(gvalue)), object_info);
+        } break;
 
         default:
             throw UnsupportedGValueType("GIRValue - conversion of input type not supported");
     }
-
-    return value;
 }
 
 // TODO: refactor to follow the style that Args::ToGType does
