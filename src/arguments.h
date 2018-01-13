@@ -5,6 +5,7 @@
 #include <nan.h>
 #include <v8.h>
 #include <vector>
+#include "util.h"
 
 namespace gir {
 
@@ -22,7 +23,7 @@ public:
     void load_context(GObject *this_object);
 
 private:
-    unique_ptr<GICallableInfo, void (*)(GICallableInfo *)> callable_info;
+    GIRInfoUniquePtr callable_info;
     GIArgument get_in_argument_value(const Local<Value> &js_value, GIArgInfo &argument_info);
     GIArgument get_out_argument_value(GIArgInfo &argument_info);
     static GITypeTag map_g_type_tag(GITypeTag type);

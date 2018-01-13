@@ -7,6 +7,7 @@
 #include <node.h>
 #include <string>
 #include "types/object.h"
+#include "util.h"
 
 namespace gir {
 
@@ -18,7 +19,7 @@ using PersistentFunction = Nan::Persistent<Function, CopyablePersistentTraits<Fu
 class GIRClosure {
 private:
     GClosure closure;
-    GICallableInfo *callable_info;
+    GIRInfoUniquePtr callable_info;
     PersistentFunction callback;
 
 public:

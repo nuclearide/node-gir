@@ -18,11 +18,17 @@ public:
     gpointer get_native_ptr();
 
     static Local<Function> prepare(GIStructInfo *info);
-    static Local<Value> from_existing(gpointer c_structure, GIStructInfo *info);
+    static Local<Value> from_existing(gpointer boxed_c_structure, GIStructInfo *info);
 
 private:
-    gpointer c_structure;
-    GIBaseInfo *info;
+    gpointer boxed_c_structure;
+    GIRInfoUniquePtr struct_info;
+
+    // when we create GIRStructs in `prepare()` we sometimes
+    // allocate memory for the struct ourselves (rather than using
+    // `g_boxed_copy()` so we need to remember which we did so we
+    // can clean up appropriately)
+    bool slice_allocated = false;
 
     static GIRInfoUniquePtr find_native_constructor(GIStructInfo *struct_info);
     static void register_methods(GIStructInfo *info, const char *namespace_, Local<FunctionTemplate> object_template);
@@ -33,6 +39,7 @@ private:
     static NAN_PROPERTY_QUERY(property_query_handler);
 
     GIRStruct() = default;
+    ~GIRStruct();
 };
 
 } // namespace gir

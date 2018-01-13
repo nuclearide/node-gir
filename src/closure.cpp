@@ -2,7 +2,6 @@
 #include <sstream>
 #include "arguments.h"
 #include "exceptions.h"
-#include "util.h"
 #include "values.h"
 
 namespace gir {
@@ -25,15 +24,17 @@ GClosure *GIRClosure::create(GICallableInfo *callable_info, Local<Function> call
     g_closure_set_marshal(closure, GIRClosure::closure_marshal);
 
     gir_signal_closure->callback = PersistentFunction(callback);
-    g_base_info_ref(callable_info); // FIXME: where do we unref, we should use a smart pointer
-    gir_signal_closure->callable_info = callable_info;
+
+    // we need to ref the callable_info because we want to keep it
+    g_base_info_ref(callable_info);
+    gir_signal_closure->callable_info = GIRInfoUniquePtr(callable_info);
 
     return closure;
 }
 
 void GIRClosure::ffi_closure_callback(ffi_cif *cif, void *result, void **args, gpointer user_data) {
     GIRClosure *gir_closure = static_cast<GIRClosure *>(user_data);
-    int n_native_args = g_callable_info_get_n_args(gir_closure->callable_info);
+    int n_native_args = g_callable_info_get_n_args(gir_closure->callable_info.get());
     vector<Local<Value>> js_args;
     js_args.reserve(n_native_args);
     // FIXME: no clue why this works but it does.
@@ -41,7 +42,7 @@ void GIRClosure::ffi_closure_callback(ffi_cif *cif, void *result, void **args, g
     // that'd be amazing.
     GIArgument **gi_args = reinterpret_cast<GIArgument **>(args);
     for (int i = 0; i < n_native_args; i++) {
-        auto arg_info = GIRInfoUniquePtr(g_callable_info_get_arg(gir_closure->callable_info, i));
+        auto arg_info = GIRInfoUniquePtr(g_callable_info_get_arg(gir_closure->callable_info.get(), i));
         auto arg_type_info = GIRInfoUniquePtr(g_arg_info_get_type(arg_info.get()));
         if (g_type_info_get_tag(arg_type_info.get()) == GI_TYPE_TAG_VOID) {
             // skip void arguments
@@ -51,6 +52,7 @@ void GIRClosure::ffi_closure_callback(ffi_cif *cif, void *result, void **args, g
     }
     Local<Function> js_callback = Nan::New<Function>(gir_closure->callback);
     Nan::Call(js_callback, Nan::GetCurrentContext()->Global(), js_args.size(), js_args.data());
+    delete cif;
 }
 
 ffi_closure *GIRClosure::create_ffi(GICallableInfo *callable_info, Local<Function> js_callback) {
@@ -78,7 +80,7 @@ void GIRClosure::closure_marshal(GClosure *closure,
         // then get some GI information for this argument (find it's Type)
         // we can get this information from the original callable_info that the
         // signal_closure was created for.
-        auto arg_info = GIRInfoUniquePtr(g_callable_info_get_arg(gir_signal_closure->callable_info,
+        auto arg_info = GIRInfoUniquePtr(g_callable_info_get_arg(gir_signal_closure->callable_info.get(),
                                                                  i)); // FIXME: CRITICAL: we should assert that the
                                                                       // length of the callable params matches the
                                                                       // n_param_values to avoid an array overrun!!!!!!!
@@ -128,7 +130,7 @@ void GIRClosure::finalize_handler(gpointer notify_data, GClosure *closure) {
     GIRClosure *gir_signal_closure = (GIRClosure *)closure;
 
     // unref (free) the GI callable_info
-    g_base_info_unref(gir_signal_closure->callable_info);
+    g_base_info_unref(gir_signal_closure->callable_info.get());
 
     // reset (free) the JS persistent function
     gir_signal_closure->callback.Reset();

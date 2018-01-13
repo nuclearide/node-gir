@@ -17,7 +17,7 @@ using namespace v8;
 using namespace std;
 
 gpointer GIRStruct::get_native_ptr() {
-    return this->c_structure;
+    return this->boxed_c_structure;
 }
 
 Local<Value> GIRStruct::from_existing(gpointer c_structure, GIStructInfo *info) {
@@ -29,14 +29,26 @@ Local<Value> GIRStruct::from_existing(gpointer c_structure, GIStructInfo *info) 
     GType gtype = g_registered_type_info_get_g_type(info);
     if (g_base_info_get_type(info) == GI_INFO_TYPE_BOXED) {
         // copy the boxed value
-        gir_struct->c_structure = g_boxed_copy(gtype, c_structure);
+        gir_struct->boxed_c_structure = g_boxed_copy(gtype, c_structure);
     } else {
         // allocate directly and copy the struct
         gsize struct_size = g_struct_info_get_size(info);
-        gir_struct->c_structure = g_slice_alloc0(struct_size); // FIXME: where do we deallocate?
-        memcpy(gir_struct->c_structure, c_structure, struct_size);
+        gir_struct->boxed_c_structure = g_slice_alloc0(struct_size);
+        gir_struct->slice_allocated = true;
+        memcpy(gir_struct->boxed_c_structure, c_structure, struct_size);
     }
     return instance;
+}
+
+GIRStruct::~GIRStruct() {
+    if (this->boxed_c_structure) {
+        if (this->slice_allocated) {
+            g_slice_free1(g_struct_info_get_size(this->struct_info.get()), this->boxed_c_structure);
+        } else {
+            GType boxed_type = g_registered_type_info_get_g_type(this->struct_info.get());
+            g_boxed_free(boxed_type, this->boxed_c_structure);
+        }
+    }
 }
 
 Local<Function> GIRStruct::prepare(GIStructInfo *info) {
@@ -115,18 +127,23 @@ NAN_METHOD(GIRStruct::constructor) {
     GIStructInfo *struct_info = (GIStructInfo *)struct_info_extern->Value();
 
     GIRStruct *obj = new GIRStruct();
-    obj->info = struct_info;
+    obj->struct_info = GIRInfoUniquePtr(struct_info);
 
     GIRInfoUniquePtr func = GIRStruct::find_native_constructor(struct_info);
     if (func != nullptr) {
         // call constructor to get a pointer
-        Args args = Args(func.get());
-        args.load_js_arguments(info);
-        GIArgument retval = GIRFunction::call_native(func.get(), args);
-        obj->c_structure = retval.v_pointer;
+        try {
+            Args args = Args(func.get());
+            args.load_js_arguments(info);
+            GIArgument retval = GIRFunction::call_native(func.get(), args);
+            obj->boxed_c_structure = retval.v_pointer;
+        } catch (exception &error) {
+            Nan::ThrowError(error.what());
+            return;
+        }
     } else {
         // allocate directly
-        obj->c_structure = g_slice_alloc0(g_struct_info_get_size(struct_info));
+        obj->boxed_c_structure = g_slice_alloc0(g_struct_info_get_size(struct_info));
     }
 
     obj->Wrap(info.This());
@@ -137,13 +154,13 @@ NAN_METHOD(GIRStruct::call_method) {
     Local<External> function_info_extern = Local<External>::Cast(info.Data());
     GIFunctionInfo *function_info = (GIFunctionInfo *)function_info_extern->Value();
     GIRStruct *that = Nan::ObjectWrap::Unwrap<GIRStruct>(info.This()->ToObject());
-    Local<Value> result = GIRFunction::call((GObject *)that->c_structure, function_info, info);
+    Local<Value> result = GIRFunction::call((GObject *)that->boxed_c_structure, function_info, info);
     info.GetReturnValue().Set(result);
 }
 
 NAN_PROPERTY_GETTER(GIRStruct::property_get_handler) {
     GIRStruct *gir_struct = Nan::ObjectWrap::Unwrap<GIRStruct>(info.This());
-    auto field_info = GIRInfoUniquePtr(g_struct_info_find_field(gir_struct->info, *String::Utf8Value(property)));
+    auto field_info = GIRInfoUniquePtr(g_struct_info_find_field(gir_struct->struct_info.get(), *String::Utf8Value(property)));
 
     // if the field doesn't exist on the native object then just return
     // whatever is set for that property on the JS object
@@ -163,7 +180,7 @@ NAN_PROPERTY_GETTER(GIRStruct::property_get_handler) {
     // otherwise we can get the native field's property and return it to JS
     GIArgument native_field_value;
     bool successfully_retrieved = g_field_info_get_field(field_info.get(),
-                                                         gir_struct->c_structure,
+                                                         gir_struct->boxed_c_structure,
                                                          &native_field_value);
     if (!successfully_retrieved) {
         stringstream message;
@@ -181,7 +198,8 @@ NAN_PROPERTY_GETTER(GIRStruct::property_get_handler) {
 
 NAN_PROPERTY_SETTER(GIRStruct::property_set_handler) {
     GIRStruct *gir_struct = Nan::ObjectWrap::Unwrap<GIRStruct>(info.This());
-    auto field_info = GIRInfoUniquePtr(g_struct_info_find_field(gir_struct->info, *String::Utf8Value(property)));
+    String::Utf8Value property_name(property);
+    auto field_info = GIRInfoUniquePtr(g_struct_info_find_field(gir_struct->struct_info.get(), *property_name));
 
     // if the native field doesn't exist then just set on the regular JS object
     if (field_info == nullptr) {
@@ -200,7 +218,7 @@ NAN_PROPERTY_SETTER(GIRStruct::property_set_handler) {
     // otherwise set the native field
     auto type_info = GIRInfoUniquePtr(g_field_info_get_type(field_info.get()));
     GIArgument native_value = Args::to_g_type(*type_info, value);
-    bool successfully_set = g_field_info_set_field(field_info.get(), gir_struct->c_structure, &native_value);
+    bool successfully_set = g_field_info_set_field(field_info.get(), gir_struct->boxed_c_structure, &native_value);
     if (!successfully_set) {
         stringstream message;
         message << "setting property '" << g_base_info_get_name(field_info.get()) << "' failed with an unknown error";

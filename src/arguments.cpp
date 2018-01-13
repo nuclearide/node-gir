@@ -1,5 +1,4 @@
 #include "arguments.h"
-#include "util.h"
 #include "values.h"
 
 #include <cstring>
@@ -14,7 +13,7 @@ using namespace v8;
 
 namespace gir {
 
-Args::Args(GICallableInfo *callable_info) : callable_info(callable_info, g_base_info_unref) {
+Args::Args(GICallableInfo *callable_info) : callable_info(callable_info) {
     g_base_info_ref(callable_info); // because we keep a reference to the info we need to tell glib
 }
 
@@ -28,7 +27,6 @@ Args::Args(GICallableInfo *callable_info) : callable_info(callable_info, g_base_
  */
 void Args::load_js_arguments(const Nan::FunctionCallbackInfo<v8::Value> &js_callback_info) {
     // get the number of arguments the native function requires
-    auto name = g_base_info_get_name(this->callable_info.get());
     guint8 gi_argc = g_callable_info_get_n_args(this->callable_info.get());
 
     // for every expected native argument, we'll take a given JS argument and
@@ -263,8 +261,8 @@ GIArgument Args::to_g_type(GIArgInfo &argument_info, Local<Value> js_value) {
                             argument_value.v_pointer = g_boxed_copy(g_type, &gvalue); // FIXME: should we copy? where do
                                                                                       // we deallocate?
                         } else {
-                            argument_value.v_pointer = Nan::ObjectWrap::Unwrap<GIRStruct>(js_value->ToObject())
-                                                           ->get_native_ptr();
+                            GIRStruct *gir_struct = Nan::ObjectWrap::Unwrap<GIRStruct>(js_value->ToObject());
+                            argument_value.v_pointer = gir_struct->get_native_ptr();
                         }
                     } break;
 
@@ -274,14 +272,11 @@ GIArgument Args::to_g_type(GIArgInfo &argument_info, Local<Value> js_value) {
                         break;
 
                     case GI_INFO_TYPE_CALLBACK:
-                        // TODO:
-                        // - find an example from GTK that uses
-                        //   a callback argument so I can write a testcase
-                        // - implement the argument type
-                        // - make sure the keybinding example also works
-                        {
+                        if (js_value->IsFunction()) {
                             auto closure = GIRClosure::create_ffi(interface_info.get(), js_value.As<Function>());
                             argument_value.v_pointer = closure;
+                        } else {
+                            throw JSArgumentTypeError();
                         }
                         break;
 
