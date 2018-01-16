@@ -16,6 +16,10 @@ On an arch based system:
 
     $ sudo pacman -S gobject-introspection
 
+On macOS:
+
+    $ brew install gobject-introspection
+
 Then just install node-gir with:
 
     $ npm install node-gir
@@ -25,6 +29,10 @@ Then just install node-gir with:
 The tests load the `gtk3` library to use as a testing target. On a Debian-like system it's likely you already have `gtk3` installed, if not, it can be installed using:
 
     $ sudo apt-get install libgtk-3-dev
+
+Or on macOS:
+
+    $ brew install gtk+3
 
 You can then run the tests with the following:
 

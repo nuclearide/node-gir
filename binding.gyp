@@ -15,29 +15,17 @@
                 'src/loop.cpp',
                 'src/closure.cpp'
             ],
-            'conditions': [
-                ['OS=="linux"',
-                    {
-                        'libraries': [
-                            '<!@(pkg-config --libs glib-2.0 gobject-introspection-1.0)'
-                        ],
-                        'cflags': [
-                            '<!@(pkg-config --cflags glib-2.0 gobject-introspection-1.0)',
-                            '-D_FILE_OFFSET_BITS=64',
-                            '-D_LARGEFILE_SOURCE'
-                        ],
-                        'ldflags': [
-                            '<!@(pkg-config --libs glib-2.0 gobject-introspection-1.0)'
-                        ]
-                    }
-                ]
-            ],
             'include_dirs': [
                 '<!(node -e "require(\'nan\')")',
+                '<!@(pkg-config glib-2.0 gobject-introspection-1.0 --cflags-only-I | sed s/-I//g)',
                 'src'
+            ],
+            'libraries': [
+                '<!@(pkg-config --libs glib-2.0 gobject-introspection-1.0)'
             ],
             'cflags': [
                 '-std=c++11',
+                '-fexceptions',
                 '-g'
             ],
             'cflags!': [
@@ -45,6 +33,13 @@
             ],
             'cflags_cc!': [
                 '-fno-exceptions'
+            ],
+            'conditions': [
+                ['OS=="mac"', {
+                    'xcode_settings': {
+                        'GCC_ENABLE_CPP_EXCEPTIONS': 'YES'
+                    }
+                }]
             ]
         }
     ]
