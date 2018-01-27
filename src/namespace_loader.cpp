@@ -48,24 +48,24 @@ Handle<Value> NamespaceLoader::build_exports(const char *library_namespace) {
 
     int length = g_irepository_get_n_infos(repository, library_namespace);
     for (int i = 0; i < length; i++) {
-        GIBaseInfo *info = g_irepository_get_info(repository, library_namespace, i); // FIXME: use GIRInfoUniquePtr
+        auto info = GIRInfoUniquePtr(g_irepository_get_info(repository, library_namespace, i));
 
-        switch (g_base_info_get_type(info)) {
+        switch (g_base_info_get_type(info.get())) {
             case GI_INFO_TYPE_OBJECT:
-                exported_value = GIRObject::prepare(info);
+                exported_value = GIRObject::prepare(info.get());
                 break;
             case GI_INFO_TYPE_FUNCTION:
-                exported_value = GIRFunction::prepare(info);
+                exported_value = GIRFunction::prepare(info.get());
                 break;
             case GI_INFO_TYPE_BOXED:
             case GI_INFO_TYPE_STRUCT:
-                exported_value = GIRStruct::prepare(info);
+                exported_value = GIRStruct::prepare(info.get());
                 break;
             case GI_INFO_TYPE_ENUM:
-                exported_value = GIREnum::prepare(info);
+                exported_value = GIREnum::prepare(info.get());
                 break;
             case GI_INFO_TYPE_FLAGS:
-                exported_value = GIREnum::prepare(info);
+                exported_value = GIREnum::prepare(info.get());
                 break;
             case GI_INFO_TYPE_UNION:
             case GI_INFO_TYPE_INTERFACE:
@@ -86,12 +86,10 @@ Handle<Value> NamespaceLoader::build_exports(const char *library_namespace) {
         }
 
         if (exported_value != Nan::Null()) {
-            string exported_name = Util::base_info_canonical_name(info);
+            string exported_name = Util::base_info_canonical_name(info.get());
             module->Set(Nan::New(exported_name).ToLocalChecked(), exported_value);
             exported_value = Nan::Null();
         }
-
-        g_base_info_unref(info);
     }
 
     return module;

@@ -16,17 +16,24 @@ namespace gir {
 using namespace v8;
 using namespace std;
 
+map<GType, PersistentFunctionTemplate> GIRStruct::prepared_js_classes;
+
 gpointer GIRStruct::get_native_ptr() {
     return this->boxed_c_structure;
 }
 
 Local<Value> GIRStruct::from_existing(gpointer c_structure, GIStructInfo *info) {
-    Local<Function> klass = GIRStruct::prepare(info); // FIXME; we should find_or_prepare to reuse already prepared
-                                                      // classes. Preparing a new class will break JS code
-                                                      // doing things like `x instanceof Lib.Class`
+    GType gtype = g_registered_type_info_get_g_type(info);
+    Local<Function> klass;
+    if (GIRStruct::prepared_js_classes.count(gtype) == 1) {
+        PersistentFunctionTemplate cached_js_class = GIRStruct::prepared_js_classes.at(gtype);
+        auto function_template = Nan::New(cached_js_class);
+        klass = function_template->GetFunction();
+    } else {
+        klass = GIRStruct::prepare(info);
+    }
     Local<Object> instance = Nan::NewInstance(klass).ToLocalChecked();
     GIRStruct *gir_struct = Nan::ObjectWrap::Unwrap<GIRStruct>(instance);
-    GType gtype = g_registered_type_info_get_g_type(info);
     if (g_base_info_get_type(info) == GI_INFO_TYPE_BOXED) {
         // copy the boxed value
         gir_struct->boxed_c_structure = g_boxed_copy(gtype, c_structure);
@@ -42,7 +49,7 @@ Local<Value> GIRStruct::from_existing(gpointer c_structure, GIStructInfo *info) 
 
 GIRStruct::~GIRStruct() {
     if (this->boxed_c_structure) {
-        if (this->slice_allocated) {
+        if (this->slice_allocated && this->boxed_c_structure != nullptr) {
             g_slice_free1(g_struct_info_get_size(this->struct_info.get()), this->boxed_c_structure);
         } else {
             GType boxed_type = g_registered_type_info_get_g_type(this->struct_info.get());
@@ -63,6 +70,8 @@ Local<Function> GIRStruct::prepare(GIStructInfo *info) {
     // GIRStruct::constructor is expecting the GIStructInfo to be attached
     // to the JS function (constructor)
     Local<FunctionTemplate> object_template = Nan::New<FunctionTemplate>(GIRStruct::constructor, struct_info_extern);
+    GIRStruct::prepared_js_classes.insert(make_pair(g_registered_type_info_get_g_type(info), PersistentFunctionTemplate(object_template)));
+
     object_template->SetClassName(Nan::New(name).ToLocalChecked());
 
     // Create instance template
@@ -106,7 +115,7 @@ void GIRStruct::register_methods(GIStructInfo *info, const char *namespace_, Han
 GIRInfoUniquePtr GIRStruct::find_native_constructor(GIStructInfo *struct_info) {
     int num_methods = g_struct_info_get_n_methods(struct_info);
 
-    // look for a 0 argument method, return it if one exists
+    // look for a 0 argument constructor method, return it if one exists
     for (int i = 0; i < num_methods; i++) {
         auto function_info = GIRInfoUniquePtr(g_struct_info_get_method(struct_info, i));
         GIFunctionInfoFlags flags = g_function_info_get_flags(function_info.get());

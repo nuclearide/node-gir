@@ -21,7 +21,7 @@ describe('struct', () => {
     expect(parentInfo.getName()).toEqual('Bin');
   });
 
-  test('', () => {
+  test('can call methods on structs', () => {
     const buttonInfo = repo.findByName('Gtk', 'Button');
     const propertyInfo = GIRepository.objectInfoGetProperty(buttonInfo, 0);
     const typeInfo = GIRepository.propertyInfoGetType(propertyInfo);
@@ -30,5 +30,12 @@ describe('struct', () => {
     expect(typeTagName).not.toEqual(null);
     expect(typeTagName).not.toEqual(undefined);
     expect(typeof(typeTagName)).toEqual('string');
+  });
+
+  test('"a instanceof b" (and vice versa) should be true for different instances of the same struct', () => {
+    const structA = repo.findByName('Gtk', 'Button');
+    const structB = repo.findByName('Gtk', 'Button');
+    expect(structA instanceof structB.constructor).toBe(true);
+    expect(structB instanceof structA.constructor).toBe(true);
   });
 });
