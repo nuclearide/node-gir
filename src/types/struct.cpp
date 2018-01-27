@@ -70,7 +70,8 @@ Local<Function> GIRStruct::prepare(GIStructInfo *info) {
     // GIRStruct::constructor is expecting the GIStructInfo to be attached
     // to the JS function (constructor)
     Local<FunctionTemplate> object_template = Nan::New<FunctionTemplate>(GIRStruct::constructor, struct_info_extern);
-    GIRStruct::prepared_js_classes.insert(make_pair(g_registered_type_info_get_g_type(info), PersistentFunctionTemplate(object_template)));
+    GIRStruct::prepared_js_classes.insert(
+        make_pair(g_registered_type_info_get_g_type(info), PersistentFunctionTemplate(object_template)));
 
     object_template->SetClassName(Nan::New(name).ToLocalChecked());
 
@@ -169,7 +170,8 @@ NAN_METHOD(GIRStruct::call_method) {
 
 NAN_PROPERTY_GETTER(GIRStruct::property_get_handler) {
     GIRStruct *gir_struct = Nan::ObjectWrap::Unwrap<GIRStruct>(info.This());
-    auto field_info = GIRInfoUniquePtr(g_struct_info_find_field(gir_struct->struct_info.get(), *String::Utf8Value(property)));
+    auto field_info = GIRInfoUniquePtr(
+        g_struct_info_find_field(gir_struct->struct_info.get(), *String::Utf8Value(property)));
 
     // if the field doesn't exist on the native object then just return
     // whatever is set for that property on the JS object
