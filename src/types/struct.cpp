@@ -48,8 +48,8 @@ Local<Value> GIRStruct::from_existing(gpointer c_structure, GIStructInfo *info) 
 }
 
 GIRStruct::~GIRStruct() {
-    if (this->boxed_c_structure) {
-        if (this->slice_allocated && this->boxed_c_structure != nullptr) {
+    if (this->boxed_c_structure != nullptr && this->struct_info != nullptr) {
+        if (this->slice_allocated) {
             g_slice_free1(g_struct_info_get_size(this->struct_info.get()), this->boxed_c_structure);
         } else {
             GType boxed_type = g_registered_type_info_get_g_type(this->struct_info.get());
@@ -113,6 +113,13 @@ void GIRStruct::register_methods(GIStructInfo *info, const char *namespace_, Han
     }
 }
 
+/**
+ * This method finds a struct's constructor method.
+ * I.e. a method that is flagged as a GI_FUNCTION_IS_CONSTRUCTOR
+ * and has 0 arguments.
+ * If this method isn't found, then it returns any method named "new".
+ * Otherwise it returns a nullptr (no default constructor).
+ */
 GIRInfoUniquePtr GIRStruct::find_native_constructor(GIStructInfo *struct_info) {
     int num_methods = g_struct_info_get_n_methods(struct_info);
 
@@ -135,28 +142,41 @@ GIRInfoUniquePtr GIRStruct::find_native_constructor(GIStructInfo *struct_info) {
 NAN_METHOD(GIRStruct::constructor) {
     Local<External> struct_info_extern = Local<External>::Cast(info.Data());
     GIStructInfo *struct_info = (GIStructInfo *)struct_info_extern->Value();
-
+    auto name = g_base_info_get_name(struct_info);
     GIRStruct *obj = new GIRStruct();
     obj->struct_info = GIRInfoUniquePtr(struct_info);
 
     GIRInfoUniquePtr func = GIRStruct::find_native_constructor(struct_info);
     if (func != nullptr) {
-        // call constructor to get a pointer
         try {
             Args args = Args(func.get());
             args.load_js_arguments(info);
-            GIArgument retval = GIRFunction::call_native(func.get(), args);
-            obj->boxed_c_structure = retval.v_pointer;
+            GIArgument result = GIRFunction::call_native(func.get(), args);
+            obj->boxed_c_structure = result.v_pointer;
         } catch (exception &error) {
             Nan::ThrowError(error.what());
             return;
         }
     } else {
-        // allocate directly
         obj->boxed_c_structure = g_slice_alloc0(g_struct_info_get_size(struct_info));
+        obj->slice_allocated = true;
     }
 
     obj->Wrap(info.This());
+
+    // if we allocated the struct directly and if a 'properties'
+    // object was passed to the constructor, then use the object
+    // to set inital values for properties on the struct
+    if (obj->slice_allocated && info.Length() == 1 && info[0]->IsObject()) {
+        Local<Object> properties = info[0]->ToObject();
+        Local<Array> property_names = properties->GetPropertyNames();
+        for (size_t i = 0; i < property_names->Length(); i++) {
+            Local<String> property_name = property_names->Get(i)->ToString();
+            Local<Value> property_value = properties->Get(property_name);
+            obj->handle()->Set(property_name, property_value);
+        }
+    }
+
     info.GetReturnValue().Set(info.This());
 }
 
@@ -228,7 +248,7 @@ NAN_PROPERTY_SETTER(GIRStruct::property_set_handler) {
 
     // otherwise set the native field
     auto type_info = GIRInfoUniquePtr(g_field_info_get_type(field_info.get()));
-    GIArgument native_value = Args::to_g_type(*type_info, value);
+    GIArgument native_value = Args::type_to_g_type(*type_info, value);
     bool successfully_set = g_field_info_set_field(field_info.get(), gir_struct->boxed_c_structure, &native_value);
     if (!successfully_set) {
         stringstream message;

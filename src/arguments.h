@@ -32,7 +32,8 @@ public:
     // these functions are legacy and need to be refactored
     // there are many missing features within them as well such as missing type conversions (types that aren't supported
     // like structs.)
-    static GIArgument to_g_type(GIArgInfo &argument_info, Local<Value> js_value);
+    static GIArgument arg_to_g_type(GIArgInfo &argument_info, Local<Value> js_value);
+    static GIArgument type_to_g_type(GITypeInfo &argument_type_info, Local<Value> js_value);
     static Local<Value> from_g_type_array(GIArgument *arg, GIArgInfo *info, int array_length);
     static Local<Value> from_g_type(GIArgument *arg, GITypeInfo *type_info, int array_length);
 };

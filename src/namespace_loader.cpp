@@ -29,7 +29,7 @@ NAN_METHOD(NamespaceLoader::load) {
     info.GetReturnValue().Set(exports);
 }
 
-Handle<Value> NamespaceLoader::load_namespace(const char *library_namespace, const char *version) {
+Local<Value> NamespaceLoader::load_namespace(const char *library_namespace, const char *version) {
     auto repository = g_irepository_get_default();
     GError *error = nullptr;
     g_irepository_require(repository, library_namespace, version, (GIRepositoryLoadFlags)0, &error);
@@ -41,9 +41,9 @@ Handle<Value> NamespaceLoader::load_namespace(const char *library_namespace, con
     return NamespaceLoader::build_exports(library_namespace);
 }
 
-Handle<Value> NamespaceLoader::build_exports(const char *library_namespace) {
+Local<Value> NamespaceLoader::build_exports(const char *library_namespace) {
     auto repository = g_irepository_get_default();
-    Handle<Object> module = Nan::New<Object>();
+    Local<Object> module = Nan::New<Object>();
     Local<Value> exported_value = Nan::Null();
 
     int length = g_irepository_get_n_infos(repository, library_namespace);

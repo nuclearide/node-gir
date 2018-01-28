@@ -26,7 +26,7 @@ private:
     static map<GType, PersistentFunctionTemplate> prepared_js_classes;
 
     gpointer boxed_c_structure = nullptr;
-    GIRInfoUniquePtr struct_info;
+    GIRInfoUniquePtr struct_info = nullptr;
 
     // when we create GIRStructs in `prepare()` we sometimes
     // allocate memory for the struct ourselves (rather than using

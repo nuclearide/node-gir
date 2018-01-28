@@ -1,10 +1,42 @@
 const { load } = require('../');
 
+const Gdk = load('Gdk');
+const GLib = load('GLib');
 const GIRepository = load('GIRepository');
 const repo = new GIRepository.Repository();
 repo.require('Gtk', '3.0', 0);
 
 describe('struct', () => {
+  describe('constructors', () => {
+    test('can be constructed using properties object', () => {
+      const rectangle = new Gdk.Rectangle({
+        width: 10,
+        height: 20,
+        x: 0,
+        y: -5,
+      });
+      expect(typeof(rectangle)).toEqual('object');
+      expect(rectangle.width).toEqual(10);
+      expect(rectangle.height).toEqual(20);
+      expect(rectangle.x).toEqual(0);
+      expect(rectangle.y).toEqual(-5);
+    });
+
+    it('can be constructed with default constructor', function () {
+      const loop = new GLib.MainLoop(null, false);
+      expect(typeof(loop)).toEqual('object');
+      const running = loop.isRunning();
+      expect(running).toBe(false);
+    });
+
+    it('can be constructed without any arguments', function () {
+      const context = new GLib.MainContext();
+      const rectangle = new Gdk.Rectangle();
+      expect(typeof(context)).toEqual('object');
+      expect(typeof(rectangle)).toEqual('object');
+    });
+  });
+
   test('can be returned from native functions', () => {
     const info = repo.findByName('Gtk', 'Button');
     expect(typeof(info)).toEqual('object');
