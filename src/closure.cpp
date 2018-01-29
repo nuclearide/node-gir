@@ -52,7 +52,6 @@ void GIRClosure::ffi_closure_callback(ffi_cif *cif, void *result, void **args, g
     }
     Local<Function> js_callback = Nan::New<Function>(gir_closure->callback);
     Nan::Call(js_callback, Nan::GetCurrentContext()->Global(), js_args.size(), js_args.data());
-    delete cif;
 }
 
 ffi_closure *GIRClosure::create_ffi(GICallableInfo *callable_info, Local<Function> js_callback) {
