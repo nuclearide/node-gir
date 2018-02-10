@@ -38,6 +38,16 @@ You can then run the tests with the following:
 
     $ npm test
 
+## Linting code
+
+[ClangFormat](https://clang.llvm.org/docs/ClangFormat.html) is used for linting the C/C++ code. On a Debian-like system you can install it by running the following:
+
+    $ sudo apt-get install clang-format
+
+You can then run the linter with the following:
+
+    $ npm run lint
+
 ## Things which work
 
 - Bindings for classes are generated
