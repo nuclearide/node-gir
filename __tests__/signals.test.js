@@ -27,7 +27,7 @@ describe('signals', () => {
   });
 
   test('a signal that passes parameters to it\'s callback should work', (done) => {
-    const window = new Gtk.Window({ type: Gtk.WindowType.TOPLEVEL, title: "signal-test-window" });;
+    const window = new Gtk.Window({ type: Gtk.WindowType.TOPLEVEL, title: 'signal-test-window' });
     const button = new Gtk.Button();
     button.connect('size-allocate', (self, allocation) => {
       expect(allocation).toHaveProperty('width');

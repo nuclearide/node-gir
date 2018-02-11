@@ -1,29 +1,28 @@
 const { load, Gtk } = require('../');
 
 const GdkPixbuf = load('GdkPixbuf');
-const GObject = load('GObject');
 
 const window = new Gtk.Window({
   type: Gtk.WindowType.TOPLEVEL,
-  title: "Node.JS GTK Window"
+  title: 'Node.JS GTK Window'
 });
 
 describe('Arguments direction', () => {
   describe('in', () => {
     test('integer', () => {
-      window.setProperty("default_height", 1);
+      window.setProperty('default_height', 1);
     });
 
     test('string', () => {
-      window.setProperty("title", "Lancelot");
+      window.setProperty('title', 'Lancelot');
     });
 
     test('boolean', () => {
-      window.setProperty("modal", true);
+      window.setProperty('modal', true);
     });
 
     test('double', () => {
-      window.setProperty("opacity", 0.5);
+      window.setProperty('opacity', 0.5);
     });
 
     test('null', () => {
@@ -41,7 +40,6 @@ describe('Arguments direction', () => {
     //   window.setTitle("Lancelot");
     //   expect(window.getProperty("title")).toEqual("Lancelot");
     // });
-
     // test('integer', () => {
     //   const type = GObject.typeFromName("GtkWindow");
     //   const children = GObject.typeChildren(type); // hidden, implicit array length
@@ -52,6 +50,4 @@ describe('Arguments direction', () => {
     //   expect(children).toContain(GObject.typeFromName('GtkOffscreenWindow'));
     // });
   });
-
 });
-

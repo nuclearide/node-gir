@@ -1,22 +1,22 @@
 const { Gtk } = require('../');
 
 const win = new Gtk.Window({
-    type: Gtk.WindowType.TOPLEVEL,
-    title:"Node.JS Gtk Window"
+  type: Gtk.WindowType.TOPLEVEL,
+  title: 'Node.JS Gtk Window'
 });
 win.setBorderWidth(10);
 
 const button = new Gtk.Button();
-button.setLabel("hallo, welt!");
+button.setLabel('hallo, welt!');
 win.add(button);
 
-win.connect("destroy", function() {
-    Gtk.mainQuit();
+win.connect('destroy', () => {
+  Gtk.mainQuit();
 });
 
-let clicked_count = 0;
-button.connect("clicked", function() {
-    button.setLabel(`clicked: ${clicked_count++} times`);
+let clickedCount = 0;
+button.connect('clicked', () => {
+  button.setLabel(`clicked: ${clickedCount++} times`);
 });
 
 win.showAll();

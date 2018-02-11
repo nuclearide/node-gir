@@ -36,5 +36,5 @@ describe('Gtk main loop integration', () => {
       done();
     });
     Gtk.main();
-  })
+  });
 });

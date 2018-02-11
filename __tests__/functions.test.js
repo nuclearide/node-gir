@@ -22,37 +22,37 @@ describe('functions', () => {
   });
 
   describe('functions can return values', () => {
-    test('functions can return a: number', function () {
+    test('functions can return a: number', () => {
       const intValue = GObject.typeFromName('GtkWindow');
-      expect(typeof(intValue)).toEqual('number');
+      expect(typeof intValue).toEqual('number');
     });
 
-    test('functions can return a: string', function () {
+    test('functions can return a: string', () => {
       const window = new Gtk.Window();
       window.title = 'Lancelot';
       expect(window.title).toEqual('Lancelot');
-      expect(typeof (window.title)).toEqual('string');
+      expect(typeof window.title).toEqual('string');
     });
 
-    test('functions can return a: boolean', function () {
+    test('functions can return a: boolean', () => {
       const window = new Gtk.Window();
       const decorated = window.getDecorated();
-      expect(typeof (decorated)).toEqual('boolean');
+      expect(typeof decorated).toEqual('boolean');
     });
 
-    test('functions can return: null', function () {
+    test('functions can return: null', () => {
       const window = new Gtk.Window();
       window.setIcon(null);
       expect(window.getIcon()).toBeNull();
     });
 
-    test('functions can return an: object', function () {
+    test('functions can return an: object', () => {
       const window = new Gtk.Window();
       window.icon = pixbuf;
-      expect(typeof(window.icon)).toEqual('object');
+      expect(typeof window.icon).toEqual('object');
     });
 
-    test('void functions return undefined', function () {
+    test('void functions return undefined', () => {
       const window = new Gtk.Window();
       const voidValue = window.resize(10, 10);
       expect(voidValue).toBeUndefined();
@@ -76,12 +76,12 @@ describe('functions', () => {
       const result = repository.getDependencies('Gtk');
       expect(Array.isArray(result)).toBe(true);
       expect(result.length).not.toEqual(0);
-      for (const element of result) {
-        expect(typeof(element)).toEqual('string');
-      }
+      result.forEach((element) => {
+        expect(typeof element).toEqual('string');
+      });
     });
 
-    test('functions with out arguments should return an array', function() {
+    test('functions with out arguments should return an array', () => {
       const button = new Gtk.Button();
       const result = button.getPreferredSize();
       expect(Array.isArray(result)).toBe(true);

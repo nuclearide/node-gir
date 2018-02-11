@@ -1,16 +1,20 @@
-//docs: http://developer.gnome.org/libnotify/0.7/NotifyNotificationotification.html
+// docs: http://developer.gnome.org/libnotify/0.7/NotifyNotificationotification.html
 const { load } = require('../');
+
 const notify = load('Notify');
 
 notify.init('notify_test.js sample application');
 
 function sleep(milliseconds) {
-  return new Promise((resolve) => setTimeout(() => resolve(), milliseconds));
+  return new Promise(resolve => setTimeout(() => resolve(), milliseconds));
 }
 
 async function main() {
   const notification = new notify.Notification({ summary: 'a' });
-  notification.update('Notify Test', 'This is a test notification message via Node.JS.');
+  notification.update(
+    'Notify Test',
+    'This is a test notification message via Node.JS.'
+  );
   notification.show();
   await sleep(2000);
 
@@ -23,7 +27,6 @@ async function main() {
   await sleep(2000);
 
   notification.close();
-  console.log('done!');
 }
 
-main().catch(console.error);
+main();

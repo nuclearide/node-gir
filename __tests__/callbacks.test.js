@@ -1,4 +1,5 @@
 const { load } = require('../');
+
 const GLib = load('GLib');
 const Gio = load('Gio');
 

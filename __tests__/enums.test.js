@@ -13,7 +13,7 @@ describe('enums should be objects on the owning namespace object', () => {
   test('enum keys are uppercase strings with number values', () => {
     expect(Gtk.WindowType).toHaveProperty('TOPLEVEL');
     expect(Gtk.WindowType.TOPLEVEL).not.toBeUndefined();
-    expect(typeof(Gtk.WindowType.TOPLEVEL)).toEqual('number');
+    expect(typeof (Gtk.WindowType.TOPLEVEL)).toEqual('number');
   });
 
   test('functions can return enum values', () => {
@@ -21,6 +21,6 @@ describe('enums should be objects on the owning namespace object', () => {
     const type = info.getType();
     expect(type).not.toBe(null);
     expect(type).not.toBe(undefined);
-    expect(typeof(type)).toEqual('number');
+    expect(typeof (type)).toEqual('number');
   });
 });
