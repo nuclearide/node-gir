@@ -1,6 +1,8 @@
 # node-gir
 
 [![CircleCI](https://circleci.com/gh/Place1/node-gir/tree/master.svg?style=svg)](https://circleci.com/gh/Place1/node-gir/tree/master)
+[![npm](https://img.shields.io/npm/v/node-gir.svg?style=flat-square)](https://www.npmjs.com/package/node-gir)
+[![npm](https://img.shields.io/npm/dt/node-gir.svg?style=flat-square)](https://www.npmjs.com/package/node-gir)
 
 Node-gir is Node.js bindings to [GObject Introspection](https://live.gnome.org/GObjectIntrospection/) making it possible to make automatic and dynamic calls to any library that has GI annotations installed. This includes most libraries from the [GNOME project](http://developer.gnome.org/).
 
