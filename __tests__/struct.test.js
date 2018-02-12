@@ -13,33 +13,33 @@ describe('struct', () => {
         width: 10,
         height: 20,
         x: 0,
-        y: -5,
+        y: -5
       });
-      expect(typeof(rectangle)).toEqual('object');
+      expect(typeof (rectangle)).toEqual('object');
       expect(rectangle.width).toEqual(10);
       expect(rectangle.height).toEqual(20);
       expect(rectangle.x).toEqual(0);
       expect(rectangle.y).toEqual(-5);
     });
 
-    it('can be constructed with default constructor', function () {
+    it('can be constructed with default constructor', () => {
       const loop = new GLib.MainLoop(null, false);
-      expect(typeof(loop)).toEqual('object');
+      expect(typeof (loop)).toEqual('object');
       const running = loop.isRunning();
       expect(running).toBe(false);
     });
 
-    it('can be constructed without any arguments', function () {
+    it('can be constructed without any arguments', () => {
       const context = new GLib.MainContext();
       const rectangle = new Gdk.Rectangle();
-      expect(typeof(context)).toEqual('object');
-      expect(typeof(rectangle)).toEqual('object');
+      expect(typeof (context)).toEqual('object');
+      expect(typeof (rectangle)).toEqual('object');
     });
   });
 
   test('can be returned from native functions', () => {
     const info = repo.findByName('Gtk', 'Button');
-    expect(typeof(info)).toEqual('object');
+    expect(typeof (info)).toEqual('object');
     expect(info.getNamespace()).toEqual('Gtk');
     expect(info.getName()).toEqual('Button');
   });
@@ -61,7 +61,7 @@ describe('struct', () => {
     const typeTagName = GIRepository.typeTagToString(typeTag);
     expect(typeTagName).not.toEqual(null);
     expect(typeTagName).not.toEqual(undefined);
-    expect(typeof(typeTagName)).toEqual('string');
+    expect(typeof (typeTagName)).toEqual('string');
   });
 
   test('"a instanceof b" (and vice versa) should be true for different instances of the same struct', () => {

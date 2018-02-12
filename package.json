@@ -26,7 +26,9 @@
     "build:debug": "node-gyp configure --debug && node-gyp build --debug",
     "clean": "rm -rf ./build || true",
     "test": "jest",
-    "lint": "clang-format -i -style=file ./src/*.{h,cpp} ./src/**/*.{h,cpp}"
+    "lint": "node ./node_modules/eslint/bin/eslint ./",
+    "lint:fix": "node ./node_modules/eslint/bin/eslint --fix ./",
+    "lint:c": "clang-format -i -style=file ./src/*.{h,cpp} ./src/**/*.{h,cpp}"
   },
   "directories": {
     "lib": "."
@@ -39,6 +41,9 @@
   },
   "devDependencies": {
     "cmake-js": "^3.6.0",
+    "eslint": "^4.17.0",
+    "eslint-config-airbnb": "^16.1.0",
+    "eslint-plugin-import": "^2.8.0",
     "jest": "^22.0.4"
   }
 }

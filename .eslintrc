@@ -1,0 +1,9 @@
+{
+  "extends": "airbnb/base",
+  "rules": {
+    "no-plusplus": "off",
+    "new-cap": "off",
+    "global-require": "off",
+    "comma-dangle": ["error", "never"]
+  }
+}

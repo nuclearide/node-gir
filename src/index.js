@@ -7,5 +7,5 @@ module.exports = {
   },
   get Gtk() {
     return require('./Gtk');
-  },
+  }
 };

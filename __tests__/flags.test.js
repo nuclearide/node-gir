@@ -10,7 +10,7 @@ describe('flags should be objects on the owning namespace object', () => {
   test('flag keys are uppercase strings with number values', () => {
     expect(Gtk.AccelFlags).toHaveProperty('LOCKED');
     expect(Gtk.AccelFlags.LOCKED).not.toBeUndefined();
-    expect(typeof(Gtk.AccelFlags.LOCKED)).toEqual('number');
+    expect(typeof (Gtk.AccelFlags.LOCKED)).toEqual('number');
   });
 
   test('flag object should match a known value from the gtk docs', () => {
@@ -37,7 +37,7 @@ describe('flags should be objects on the owning namespace object', () => {
       MULTIHEAD: 64,
       NO_PIXEL_CACHE: 65536,
       TREE: 8,
-      NO_CSS_CACHE: 8192,
+      NO_CSS_CACHE: 8192
     });
   });
 });
