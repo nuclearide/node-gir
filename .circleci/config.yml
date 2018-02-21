@@ -25,14 +25,14 @@ jobs:
       - image: node:6-stretch
     steps: *test_steps
 
-  lint-cpp:
-    docker:
-      - image: debian:buster
-    steps:
-      - checkout
-      - run: apt update
-      - run: apt install -y clang-format-5.0
-      - run: clang-format-5.0 -i -style=file ./src/*.h ./src/*.cpp ./src/**/*.h ./src/**/*.cpp -output-replacements-xml | grep -c "<replacement " > /dev/null; if [ $? -eq 0 ]; then exit 1; else exit 0; fi
+  # lint-cpp:
+  #   docker:
+  #     - image: debian:buster
+  #   steps:
+  #     - checkout
+  #     - run: apt update
+  #     - run: apt install -y clang-format-5.0
+  #     - run: clang-format-5.0 -i -style=file ./src/*.h ./src/*.cpp ./src/**/*.h ./src/**/*.cpp -output-replacements-xml | grep -c "<replacement " > /dev/null; if [ $? -eq 0 ]; then exit 1; else exit 0; fi
 
   lint-js:
     docker:
