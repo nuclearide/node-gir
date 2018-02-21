@@ -37,7 +37,6 @@ BraceWrapping:
   BeforeElse: false
   IndentBraces: false
   SplitEmptyRecord: true
-  SplitEmptyNamespace: true
 BreakBeforeBinaryOperators: None
 BreakBeforeBraces: Attach
 BreakBeforeInheritanceComma: false
