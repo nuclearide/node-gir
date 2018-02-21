@@ -26,9 +26,9 @@
     "build:debug": "node-gyp configure --debug && node-gyp build --debug",
     "clean": "rm -rf ./build || true",
     "test": "jest",
-    "lint": "node ./node_modules/eslint/bin/eslint ./",
-    "lint:fix": "node ./node_modules/eslint/bin/eslint --fix ./",
-    "lint:c": "clang-format -i -style=file ./src/*.{h,cpp} ./src/**/*.{h,cpp}"
+    "lint": "npm run lint:cpp; npm run lint:js",
+    "lint:js": "eslint ./",
+    "lint:cpp": "clang-format -i -style=file ./src/*.h ./src/*.cpp ./src/**/*.h ./src/**/*.cpp"
   },
   "directories": {
     "lib": "."

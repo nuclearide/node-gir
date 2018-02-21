@@ -5,7 +5,7 @@ const GdkPixbuf = load('GdkPixbuf');
 const pixbuf = new GdkPixbuf.Pixbuf();
 const win = new Gtk.Window({
   type: Gtk.WindowType.TOPLEVEL,
-  title: 'Node.JS GTK Window'
+  title: 'Node.JS GTK Window',
 });
 
 describe('Gtk.Object', () => {

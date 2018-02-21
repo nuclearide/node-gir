@@ -4,7 +4,7 @@ const GdkPixbuf = load('GdkPixbuf');
 
 const window = new Gtk.Window({
   type: Gtk.WindowType.TOPLEVEL,
-  title: 'Node.JS GTK Window'
+  title: 'Node.JS GTK Window',
 });
 
 describe('Arguments direction', () => {

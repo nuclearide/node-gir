@@ -4,6 +4,7 @@
     "no-plusplus": "off",
     "new-cap": "off",
     "global-require": "off",
-    "comma-dangle": ["error", "never"]
+    "comma-dangle": ["error", "always-multiline"],
+    "no-console": ["error"]
   }
 }

@@ -13,7 +13,7 @@ describe('struct', () => {
         width: 10,
         height: 20,
         x: 0,
-        y: -5
+        y: -5,
       });
       expect(typeof (rectangle)).toEqual('object');
       expect(rectangle.width).toEqual(10);

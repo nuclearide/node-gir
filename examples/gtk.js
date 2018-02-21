@@ -2,7 +2,7 @@ const { Gtk } = require('../');
 
 const win = new Gtk.Window({
   type: Gtk.WindowType.TOPLEVEL,
-  title: 'Node.JS Gtk Window'
+  title: 'Node.JS Gtk Window',
 });
 win.setBorderWidth(10);
 

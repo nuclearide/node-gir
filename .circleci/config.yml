@@ -25,14 +25,23 @@ jobs:
       - image: node:6-stretch
     steps: *test_steps
 
-  lint:
+  lint-cpp:
     docker:
       - image: ubuntu
     steps:
       - checkout
       - run: apt-get update
       - run: apt-get install -y clang-format
-      - run: npm run lint -- -output-replacements-xml | grep -c "<replacement "; [ $? -ne 1 ] && exit 1 || exit 0
+      - run: npm run lint:cpp -- -output-replacements-xml | grep -c "<replacement "; [ $? -ne 1 ] && exit 1 || exit 0
+
+  lint-js:
+    docker:
+      - image: node:8-stretch
+    steps:
+      - checkout
+      - run: npm install
+      - run: run run lint:js
+
 
 workflows:
   version: 2
@@ -41,3 +50,5 @@ workflows:
       - build
       - node-8
       - node-6
+      - lint-cpp
+      - lint-js

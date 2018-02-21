@@ -37,7 +37,7 @@ describe('flags should be objects on the owning namespace object', () => {
       MULTIHEAD: 64,
       NO_PIXEL_CACHE: 65536,
       TREE: 8,
-      NO_CSS_CACHE: 8192
+      NO_CSS_CACHE: 8192,
     });
   });
 });

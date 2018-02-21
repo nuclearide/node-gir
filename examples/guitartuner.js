@@ -15,7 +15,7 @@ gst.init(0);
 
 const guitarwindow = new gtk.Window({
   type: gtk.WindowType.TOPLEVEL,
-  title: 'Node.js Guitar Tuner'
+  title: 'Node.js Guitar Tuner',
 });
 
 guitarwindow.connect('destroy', () => {
@@ -27,7 +27,7 @@ const guitarBox = new gtk.ButtonBox();
 
 function playSound(frequency) {
   const pipeline = new gst.Pipeline({
-    name: 'note'
+    name: 'note',
   });
   const source = new gst.ElementFactory.make('audiotestsrc', 'source');
   const sink = new gst.ElementFactory.make('autoaudiosink', 'output');
@@ -40,7 +40,7 @@ function playSound(frequency) {
 
 function addButton(tune, freq) {
   const button = new gtk.Button({
-    label: tune
+    label: tune,
   });
   guitarBox.add(button);
   button.connect('clicked', () => {
@@ -54,7 +54,7 @@ const tunes = {
   D: 587.33,
   G: 783.99,
   B: 987.77,
-  e: 1318.5
+  e: 1318.5,
 };
 
 Object.keys(tunes).forEach((key) => {
