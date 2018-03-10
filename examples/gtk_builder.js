@@ -1,8 +1,15 @@
+/*
+ * Adapted to node-gir from the C version :
+ * https://github.com/GNOME/gtk/blob/master/examples/builder.c
+ */
+
 const { Gtk } = require('../');
 
+// Construct a GtkBuilder instance and load our UI description.
 const builder = new Gtk.Builder();
 builder.addFromFile("builder.ui");
 
+// Connect signal handlers to the constructed widgets.
 const win = builder.getObject("window");
 win.connect('destroy', () => {
     Gtk.main_quit();
