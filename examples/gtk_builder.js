@@ -24,8 +24,8 @@ button2.connect('clicked', () => {
     console.log("Hello World");
 })
 
-const quit_button = builder.getObject('quit');
-quit_button.connect('clicked', () => {
+const quitButton = builder.getObject('quit');
+quitButton.connect('clicked', () => {
     Gtk.main_quit();
 })
 
