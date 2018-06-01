@@ -21,6 +21,22 @@ struct GIBaseInfoDeleter {
 };
 
 /**
+ * This is a trait to be used when the object that is being held has copy semantics but its memory is
+ * manually or externally managed, for example with structs that the Gtk Main Loop controls. Persistent
+ * objects that have this trait will not have their handler reference reset on destruction. It is
+ * assumed the memory has been dealt with.
+ *
+ * @tparam T Object type that has this trait
+ */
+template<class T>
+struct ManagedCopyablePersistentTraits {
+    typedef v8::Persistent<T, ManagedCopyablePersistentTraits<T> > CopyablePersistent;
+    static const bool kResetInDestructor = false; // GtkStructs memory is managed by the Gtk Main Loop
+    template<class S, class M>
+    static V8_INLINE void Copy(const v8::Persistent<S, M>& source, CopyablePersistent* dest) { }
+};
+
+/**
  * This alias allows for a more readable way of wrapping a GIBaseInfo pointer
  * or some derivative (GICallableInfo, etc) in a std::unique_ptr with a custom
  * deleter that calls `g_base_info_unref`.
