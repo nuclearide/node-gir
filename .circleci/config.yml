@@ -12,6 +12,11 @@ test_steps: &test_steps
 jobs:
   build:
     docker:
+      - image: node:10-stretch
+    steps: *test_steps
+
+  node-9:
+    docker:
       - image: node:9-stretch
     steps: *test_steps
 
