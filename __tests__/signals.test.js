@@ -1,4 +1,5 @@
 const { Gtk } = require('../');
+const Gdk = require('../').load('Gdk');
 
 describe('signals', () => {
   test('connect() returns a number', () => {
@@ -47,5 +48,13 @@ describe('signals', () => {
       done();
     });
     entry.setText('dummy text');
+  });
+
+  test('TODO name this test', (done) => {
+    const button = new Gtk.ColorButton()
+    button.connect('notify::color', () => {
+      done();
+    });
+    button.setColor(new Gdk.Color({ red: 0, green: 0, blue: 0 }));
   });
 });
