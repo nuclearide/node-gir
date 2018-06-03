@@ -21,7 +21,10 @@ using namespace std;
  */
 class GIRParamSpec : public Nan::ObjectWrap {
 private:
-    GIRInfoUniquePtr param_spec;
+    ~GIRParamSpec();
+    static Nan::Persistent<Function> instance_constructor;
+    static Local<Function> get_js_constructor();
+    GParamSpec *param_spec;
 
 public:
     static Local<Value> from_existing(GParamSpec *param_spec);
