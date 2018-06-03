@@ -5,6 +5,7 @@
 #include <nan.h>
 #include <v8.h>
 #include <vector>
+#include <internal/PersistentObjectStore.h>
 #include "util.h"
 
 namespace gir {
@@ -12,8 +13,7 @@ namespace gir {
 using namespace v8;
 
 // Use the managed trait as this is for storing structs managed by Gtk main loop
-using ManagedPersistentFunctionTemplate
-                            = Nan::Persistent<FunctionTemplate, ManagedCopyablePersistentTraits<FunctionTemplate>>;
+using PersistentFunctionTemplate = Nan::Persistent<FunctionTemplate, CopyablePersistentTraits<FunctionTemplate>>;
 
 class GIRStruct;
 
@@ -25,7 +25,7 @@ public:
     static Local<Value> from_existing(gpointer boxed_c_structure, GIStructInfo *info);
 
 private:
-    static map<GType, ManagedPersistentFunctionTemplate> prepared_js_classes;
+    static PersistentObjectStore<GType, PersistentFunctionTemplate> prepared_js_classes;
 
     gpointer boxed_c_structure = nullptr;
     GIRInfoUniquePtr struct_info = nullptr;
