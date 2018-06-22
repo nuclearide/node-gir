@@ -268,6 +268,7 @@ GIArgument Args::type_to_g_type(GITypeInfo &argument_type_info, Local<Value> js_
                     }
                     break;
 
+                case GI_INFO_TYPE_INTERFACE:
                 case GI_INFO_TYPE_VALUE:
                 case GI_INFO_TYPE_STRUCT:
                 case GI_INFO_TYPE_UNION:

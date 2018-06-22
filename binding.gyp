@@ -17,7 +17,7 @@
             ],
             'include_dirs': [
                 '<!(node -e "require(\'nan\')")',
-                '<!@(pkg-config glib-2.0 gobject-introspection-1.0 --cflags-only-I | sed s/-I//g)',
+                '<!@(PKG_CONFIG_PATH=/usr/local/opt/libffi/lib/pkgconfig pkg-config glib-2.0 gobject-introspection-1.0 --cflags-only-I | sed s/-I//g)',
                 'src'
             ],
             'libraries': [
